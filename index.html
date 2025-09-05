@@ -72,6 +72,17 @@
       color: #ffcc00;
       min-height: 24px;
     }
+
+    #leaderboard {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    #leaderboard li {
+      font-size: 16px;
+      margin: 4px 0;
+    }
   </style>
 </head>
 <body>
@@ -91,28 +102,57 @@
     <button class="shop-button" onclick="buyAutoClick()">Enable Auto Click — 100,000 RUINA</button>
   </div>
 
+  <!-- Player Name Input -->
+  <div style="margin-top: 20px;">
+    <input type="text" id="playerName" placeholder="Enter your name" style="padding: 8px; border-radius: 5px;">
+    <button onclick="saveScore()" class="shop-button">Save Score</button>
+  </div>
+
+  <!-- Leaderboard -->
+  <div style="margin-top: 30px;">
+    <h2 style="color:#00ffd5;">Leaderboard</h2>
+    <ul id="leaderboard"></ul>
+  </div>
+
   <!-- Message Box -->
   <div id="message"></div>
 
   <script>
     let ruina = 0;
-    let clickPower = 10;
+    let clickPower = 1;
     let upgradeCost = 50;
     let autoClickEnabled = false;
+
+    window.onload = function () {
+      const saved = JSON.parse(localStorage.getItem("ruinaData"));
+      if (saved) {
+        ruina = saved.ruina || 0;
+        clickPower = saved.clickPower || 1;
+        upgradeCost = saved.upgradeCost || 50;
+        autoClickEnabled = saved.autoClickEnabled || false;
+        document.getElementById('upgradeCost').innerText = upgradeCost;
+        updateScore();
+        if (autoClickEnabled) startAutoClick();
+      }
+      showLeaderboard();
+      saveData(); // ensure data is saved on load
+    };
 
     function tap() {
       ruina += clickPower;
       updateScore();
+      saveData();
     }
 
     function buyUpgrade() {
       if (ruina >= upgradeCost) {
         clickPower += 1;
         ruina -= upgradeCost;
-        upgradeCost = Math.floor(upgradeCost * 1.5); // increase cost by 50%
+        upgradeCost = Math.floor(upgradeCost * 1.5);
         document.getElementById('upgradeCost').innerText = upgradeCost;
         updateScore();
         showMessage("Upgrade purchased! Click power is now +" + clickPower);
+        saveData();
       } else {
         showMessage("Not enough RUINA to buy upgrade.");
       }
@@ -127,14 +167,20 @@
         ruina -= 100000;
         autoClickEnabled = true;
         updateScore();
-        showMessage("Auto Click activated! +1 RUINA every second.");
-        setInterval(() => {
-          ruina += 1;
-          updateScore();
-        }, 1000);
+        showMessage("Auto Click activated! +" + clickPower + " RUINA every second.");
+        startAutoClick();
+        saveData();
       } else {
         showMessage("Not enough RUINA to activate Auto Click.");
       }
+    }
+
+    function startAutoClick() {
+      setInterval(() => {
+        ruina += clickPower;
+        updateScore();
+        saveData();
+      }, 1000);
     }
 
     function updateScore() {
@@ -148,20 +194,43 @@
       setTimeout(() => {
         msg.style.opacity = 0;
       }, 3000);
-    };
-      window.onload = function () {
-    const saved = JSON.parse(localStorage.getItem("ruinaData"));
-    if (saved) {
-      ruina = saved.ruina || 0;
-      clickPower = saved.clickPower || 1;
-      upgradeCost = saved.upgradeCost || 50;
-      autoClickEnabled = saved.autoClickEnabled || false;
-      document.getElementById('upgradeCost').innerText = upgradeCost;
-      updateScore();
-      if (autoClickEnabled) startAutoClick();
     }
-  };
+
+    function saveData() {
+      const data = {
+        ruina,
+        clickPower,
+        upgradeCost,
+        autoClickEnabled
+      };
+      localStorage.setItem("ruinaData", JSON.stringify(data));
+    }
+
+    function saveScore() {
+      const name = document.getElementById("playerName").value.trim();
+      if (!name) {
+        showMessage("Enter your name to save score.");
+        return;
+      }
+
+      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+      leaderboard.push({ name, ruina });
+      leaderboard.sort((a, b) => b.ruina - a.ruina);
+      const top5 = leaderboard.slice(0, 5);
+      localStorage.setItem("ruinaLeaderboard", JSON.stringify(top5));
+      showLeaderboard();
+    }
+
+    function showLeaderboard() {
+      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+      const list = document.getElementById("leaderboard");
+      list.innerHTML = "";
+      leaderboard.forEach((entry, index) => {
+        const li = document.createElement("li");
+        li.innerText = `${index + 1}. ${entry.name} — ${entry.ruina} RUINA`;
+        list.appendChild(li);
+      });
+    }
   </script>
 </body>
 </html>
-
