@@ -96,7 +96,7 @@
 
   <script>
     let ruina = 0;
-    let clickPower = 1;
+    let clickPower = 10;
     let upgradeCost = 50;
     let autoClickEnabled = false;
 
@@ -148,7 +148,20 @@
       setTimeout(() => {
         msg.style.opacity = 0;
       }, 3000);
+    };
+      window.onload = function () {
+    const saved = JSON.parse(localStorage.getItem("ruinaData"));
+    if (saved) {
+      ruina = saved.ruina || 0;
+      clickPower = saved.clickPower || 1;
+      upgradeCost = saved.upgradeCost || 50;
+      autoClickEnabled = saved.autoClickEnabled || false;
+      document.getElementById('upgradeCost').innerText = upgradeCost;
+      updateScore();
+      if (autoClickEnabled) startAutoClick();
     }
+  };
   </script>
 </body>
 </html>
+
