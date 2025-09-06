@@ -1,76 +1,159 @@
-function buyAutoClick() {
-      if (autoClickEnabled) {
-        showMessage("Auto Click is already active.");
-        return;
-      }
-      if (ruina >= 100000) {
-        ruina -= 100000;
-        autoClickEnabled = true;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RUINACOIN TAP</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background-color: #0f0f0f;
+      color: #fff;
+      font-family: 'Arial', sans-serif;
+      text-align: center;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      color: #ff00aa;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px #ff00aa;
+    }
+
+    #score {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    .tap-image {
+      width: 80%;
+      max-width: 300px;
+      height: auto;
+      cursor: pointer;
+      border-radius: 20px;
+      box-shadow: 0 0 20px #ff00aa;
+      transition: transform 0.1s ease;
+    }
+
+    .tap-image:active {
+      transform: scale(0.97);
+    }
+
+    .shop {
+      margin-top: 30px;
+    }
+
+    .shop h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+      color: #00ffd5;
+    }
+
+    .shop-button {
+      font-size: 16px;
+      margin: 8px;
+      padding: 10px 20px;
+      background-color: #222;
+      color: #fff;
+      border: 2px solid #00ffd5;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .shop-button:hover {
+      background-color: #333;
+    }
+
+    #message {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #ffcc00;
+      min-height: 24px;
+    }
+
+    #leaderboard {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    #leaderboard li {
+      font-size: 16px;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>RUINACOIN TAP</h1>
+  <div id="score">RUINA: 0</div>
+
+  <!-- Tap Button Image -->
+  <img src="https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png"
+       alt="RUINA Button"
+       class="tap-image"
+       onclick="tap()">
+
+  <!-- Upgrade Shop -->
+  <div class="shop">
+    <h2>Upgrade Shop</h2>
+    <button class="shop-button" onclick="buyUpgrade()">Add +1 per click — <span id="upgradeCost">50</span> RUINA</button>
+    <button class="shop-button" onclick="buyAutoClick()">Enable Auto Click — 100,000 RUINA</button>
+  </div>
+
+  <!-- Player Name Input -->
+  <div style="margin-top: 20px;">
+    <input type="text" id="playerName" placeholder="Enter your name" style="padding: 8px; border-radius: 5px;">
+    <button onclick="saveScore()" class="shop-button">Save Score</button>
+  </div>
+
+  <!-- Leaderboard -->
+  <div style="margin-top: 30px;">
+    <h2 style="color:#00ffd5;">Leaderboard</h2>
+    <ul id="leaderboard"></ul>
+  </div>
+
+  <!-- Message Box -->
+  <div id="message"></div>
+
+  <script>
+    let ruina = 0;
+    let clickPower = 1;
+    let upgradeCost = 50;
+    let autoClickEnabled = false;
+
+    window.onload = function () {
+      const saved = JSON.parse(localStorage.getItem("ruinaData"));
+      if (saved) {
+        ruina = saved.ruina || 0;
+        clickPower = saved.clickPower || 1;
+        upgradeCost = saved.upgradeCost || 50;
+        autoClickEnabled = saved.autoClickEnabled || false;
+        document.getElementById('upgradeCost').innerText = upgradeCost;
         updateScore();
-        showMessage("Auto Click activated! +" + clickPower + " RUINA every second.");
-        startAutoClick();
+        if (autoClickEnabled) startAutoClick();
+      }
+      showLeaderboard();
+      saveData(); // ensure data is saved on load
+    };
+
+    function tap() {
+      ruina += clickPower;
+      updateScore();
+      saveData();
+    }
+
+    function buyUpgrade() {
+      if (ruina >= upgradeCost) {
+        clickPower += 1;
+        ruina -= upgradeCost;
+        upgradeCost = Math.floor(upgradeCost * 1.5);
+        document.getElementById('upgradeCost').innerText = upgradeCost;
+        updateScore();
+        showMessage("Upgrade purchased! Click power is now +" + clickPower);
         saveData();
       } else {
-        showMessage("Not enough RUINA to activate Auto Click.");
+        showMessage("Not enough RUINA to buy upgrade.");
       }
     }
-
-    function startAutoClick() {
-      setInterval(() => {
-        ruina += clickPower;
-        updateScore();
-        saveData();
-      }, 1000);
-    }
-
-    function updateScore() {
-      document.getElementById('score').innerText = 'RUINA: ' + ruina;
-    }
-
-    function showMessage(text) {
-      const msg = document.getElementById('message');
-      msg.innerText = text;
-      msg.style.opacity = 1;
-      setTimeout(() => {
-        msg.style.opacity = 0;
-      }, 3000);
-    }
-
-    function saveData() {
-      const data = {
-        ruina,
-        clickPower,
-        upgradeCost,
-        autoClickEnabled
-      };
-      localStorage.setItem("ruinaData", JSON.stringify(data));
-    }
-
-    function saveScore() {
-      const name = document.getElementById("playerName").value.trim();
-      if (!name) {
-        showMessage("Enter your name to save score.");
-        return;
-      }
-
-      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
-      leaderboard.push({ name, ruina });
-      leaderboard.sort((a, b) => b.ruina - a.ruina);
-      const top5 = leaderboard.slice(0, 5);
-      localStorage.setItem("ruinaLeaderboard", JSON.stringify(top5));
-      showLeaderboard();
-    }
-
-    function showLeaderboard() {
-      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
-      const list = document.getElementById("leaderboard");
-      list.innerHTML = "";
-      leaderboard.forEach((entry, index) => {
-        const li = document.createElement("li");
-        li.innerText = ${index + 1}. ${entry.name} — ${entry.ruina} RUINA;
-        list.appendChild(li);
-      });
-    }
-  </script>
-</body>
-</html>
