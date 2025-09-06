@@ -132,7 +132,7 @@
 
     // Список запрещённых слов
 function containsBadWords(name) {
-  const badWords = ["хуй", "пизда", "еба", "сука", "бляд", "fuck", "shit", "bitch"писюн"песюн"песун"члэн"член"ебаба"ебоба"];
+  const badWords = ["хуй", "пизда", "еба", "сука", "бляд", "fuck", "shit", "bitch", "писюн", "песюн", "песун", "члэн", "член", "ебаба", "ебоба"];
   const lowerName = name.toLowerCase();
   return badWords.some(word => lowerName.includes(word));
 }
@@ -307,4 +307,5 @@ function autoSaveScore() {
   </script>
 </body>
 </html>
+
 
