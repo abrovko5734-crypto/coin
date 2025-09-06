@@ -130,6 +130,68 @@
     let upgradeCost = 50;
     let autoClickEnabled = false;
 
+    // Список запрещённых слов
+function containsBadWords(name) {
+  const badWords = ["хуй", "пизда", "еба", "сука", "бляд", "fuck", "shit", "bitch"писюн"песюн"песун"члэн"член"ебаба"ебоба"];
+  const lowerName = name.toLowerCase();
+  return badWords.some(word => lowerName.includes(word));
+}
+// Сохранение очков вручную
+function saveScore() {
+  const name = document.getElementById("playerName").value.trim();
+  if (!name) {
+    showMessage("Enter your name to save score.");
+    return;
+  }
+
+  if (containsBadWords(name)) {
+    showMessage("Inappropriate name. Please choose a different one.");
+    return;
+  }
+
+  const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+  const existing = leaderboard.find(entry => entry.name === name);
+
+  if (existing) {
+    if (ruina > existing.ruina) {
+      existing.ruina = ruina;
+      showMessage("New high score saved!");
+    } else {
+      showMessage("Your previous score is higher.");
+    }
+  } else {
+    leaderboard.push({ name, ruina });
+    showMessage("Score saved!");
+  }
+
+  leaderboard.sort((a, b) => b.ruina - a.ruina);
+  const top5 = leaderboard.slice(0, 5);
+  localStorage.setItem("ruinaLeaderboard", JSON.stringify(top5));
+  showLeaderboard();
+}
+
+// Автосохранение каждые 15 секунд
+function autoSaveScore() {
+  const name = document.getElementById("playerName").value.trim();
+  if (!name || containsBadWords(name)) return;
+
+  const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+  const existing = leaderboard.find(entry => entry.name === name);
+
+  if (existing) {
+    if (ruina > existing.ruina) {
+      existing.ruina = ruina;
+    }
+  } else {
+    leaderboard.push({ name, ruina });
+  }
+
+  leaderboard.sort((a, b) => b.ruina - a.ruina);
+  const top5 = leaderboard.slice(0, 5);
+  localStorage.setItem("ruinaLeaderboard", JSON.stringify(top5));
+  showLeaderboard();
+}
+
     window.onload = function () {
       const saved = JSON.parse(localStorage.getItem("ruinaData"));
       if (saved) {
@@ -144,8 +206,11 @@
       showLeaderboard();
       saveData();
     };
-
-    function tap() {
+    setInterval(() => {
+  autoSaveScore();
+}, 15000);
+    
+      function tap() {
       ruina += clickPower;
       updateScore();
       saveData();
@@ -242,3 +307,4 @@
   </script>
 </body>
 </html>
+
