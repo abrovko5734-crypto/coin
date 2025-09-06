@@ -23,6 +23,12 @@
 
     #score {
       font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    #clickPowerDisplay {
+      font-size: 20px;
+      color: #00ffd5;
       margin-bottom: 20px;
     }
 
@@ -88,6 +94,7 @@
 <body>
   <h1>RUINACOIN TAP</h1>
   <div id="score">RUINA: 0</div>
+  <div id="clickPowerDisplay">Click Power: +1</div>
 
   <!-- Tap Button Image -->
   <img src="https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png"
@@ -135,7 +142,7 @@
         if (autoClickEnabled) startAutoClick();
       }
       showLeaderboard();
-      saveData(); // ensure data is saved on load
+      saveData();
     };
 
     function tap() {
@@ -157,3 +164,81 @@
         showMessage("Not enough RUINA to buy upgrade.");
       }
     }
+
+    function buyAutoClick() {
+      if (autoClickEnabled) {
+        showMessage("Auto Click is already active.");
+        return;
+      }
+      if (ruina >= 100000) {
+        ruina -= 100000;
+        autoClickEnabled = true;
+        updateScore();
+        showMessage("Auto Click activated! +" + clickPower + " RUINA every second.");
+        startAutoClick();
+        saveData();
+      } else {
+        showMessage("Not enough RUINA to activate Auto Click.");
+      }
+    }
+
+    function startAutoClick() {
+      setInterval(() => {
+        ruina += clickPower;
+        updateScore();
+        saveData();
+      }, 1000);
+    }
+
+    function updateScore() {
+      document.getElementById('score').innerText = 'RUINA: ' + ruina;
+      document.getElementById('clickPowerDisplay').innerText = 'Click Power: +' + clickPower;
+    }
+
+    function showMessage(text) {
+      const msg = document.getElementById('message');
+      msg.innerText = text;
+      msg.style.opacity = 1;
+      setTimeout(() => {
+        msg.style.opacity = 0;
+      }, 3000);
+    }
+
+    function saveData() {
+      const data = {
+        ruina,
+        clickPower,
+        upgradeCost,
+        autoClickEnabled
+      };
+      localStorage.setItem("ruinaData", JSON.stringify(data));
+    }
+
+    function saveScore() {
+      const name = document.getElementById("playerName").value.trim();
+      if (!name) {
+        showMessage("Enter your name to save score.");
+        return;
+      }
+
+      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+      leaderboard.push({ name, ruina });
+      leaderboard.sort((a, b) => b.ruina - a.ruina);
+      const top5 = leaderboard.slice(0, 5);
+      localStorage.setItem("ruinaLeaderboard", JSON.stringify(top5));
+      showLeaderboard();
+    }
+
+    function showLeaderboard() {
+      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+      const list = document.getElementById("leaderboard");
+      list.innerHTML = "";
+      leaderboard.forEach((entry, index) => {
+        const li = document.createElement("li");
+        li.innerText = `${index + 1}. ${entry.name} — ${entry.ruina} RUINA`;
+        list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
