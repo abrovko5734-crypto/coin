@@ -19,13 +19,14 @@
     #message { margin-top:20px; font-size:18px; color:#ffcc00; min-height:24px; }
     #leaderboard { list-style:none; padding:0; margin-top:20px; }
     #leaderboard li { font-size:16px; margin:4px 0; }
-    .skin-button { display:inline-block; margin:10px; border:2px solid #00ffd5; border-radius:12px; cursor:pointer; padding:8px; background:#111; transition:background-color .3s ease; max-width:150px; }
+    .skin-button { display:inline-block; margin:10px; border:2px solid #00ffd5; border-radius:12px; cursor:pointer; padding:8px; background:#111; transition:background-color .3s ease; max-width:160px; text-align:center; }
     .skin-button:hover { background:#222; }
-    .skin-img { max-width:100%; border-radius:10px; display:block; margin-bottom:6px; box-shadow:0 0 10px #00ffd5; }
+    .skin-img { max-width:100%; border-radius:10px; display:block; margin:0 auto 6px; box-shadow:0 0 10px #00ffd5; }
     .skin-info { color:#00ffd5; font-size:14px; font-weight:bold; }
     #console { position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.95); border-top:2px solid #00ffd5; padding:10px; display:none; z-index:10000; }
     #consoleInput { width:95%; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:8px; color:#00ffd5; font-size:16px; outline:none; }
-    .hint { font-size:12px; color:#999; margin-top:6px; }
+    .hint { font-size:12px; color:#999; margin-top:6px; text-align:left; max-width:900px; margin-left:auto; margin-right:auto; }
+    .selected-badge { display:inline-block; margin-top:6px; padding:4px 8px; background:#00ffd5; color:#000; border-radius:8px; font-weight:bold; font-size:12px; }
   </style>
 </head>
 <body>
@@ -62,207 +63,342 @@
 
   <div id="console">
     <input type="text" id="consoleInput" placeholder="Команды: /pay id сумма, /click id сила, /changeID old new, /balance id, /close" />
-    <div class="hint">Пример: /click 143434 60 → теперь у ID 143434 сила клика 60.</div>
+    <div class="hint">Примеры: <b>/pay 123456 500</b> — дать 500 RUINA id; <b>/click 123456 60</b> — назначить clickPower 60 пользователю; <b>/changeID 111111 222222</b> — смена ID.</div>
   </div>
 
   <script>
+    // ======= Данные и настройки =======
     let ruina = 0;
-    let clickPower = 1;
+    // base (сохраняемые) параметры игрока:
+    let baseClick = 1;         // базовая сила клика (увеличивается через апгрейд)
+    let baseAuto = 0;          // базовый уровень автоклика (кол-во RUINA в сек до применения скина)
     let upgradeCost = 50;
-    let autoClickLevel = 0;
     let autoClickCost = 20000;
-    let autoClickInterval = null;
+    let autoInterval = null;
+
+    // расчетные (эффективные) параметры с учётом скина:
+    let effClick = 1;
+    let effAuto = 0;
+
     let selectedSkinIndex = null;
     let playerID = null;
 
+    // Скины (skin 6 стоит первый, как просил)
     const skins = [
-  { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg" },
-  { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg" },
-  { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg" },
-  { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg" },
-  { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg" },
-  { name: "Skin 6", price: 676767, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg" }
-];
-    function generateRandomID() { return String(Math.floor(100000 + Math.random() * 900000)); }
-    function getBalance(id) { return Number(localStorage.getItem("ruina_" + id) || "0"); }
-    function setBalance(id, amount) { localStorage.setItem("ruina_" + id, String(Math.max(0, Math.floor(amount)))); }
+      { name: "Skin 6", price: 676767, img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg", bonus: { clickMult: 3, autoMult: 3 } },
+      { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.1, autoMult: 1 } },
+      { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.25, autoMult: 1 } },
+      { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.5, autoMult: 1 } },
+      { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
+      { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 3 } }
+    ];
 
-    function loadData(id) { try { return JSON.parse(localStorage.getItem("ruinaData_" + id)) || {}; } catch { return {}; } }
-    function saveData(id, data) { localStorage.setItem("ruinaData_" + id, JSON.stringify(data)); }
+    // ======= localStorage helpers =======
+    function generateRandomID() {
+      return String(Math.floor(100000 + Math.random() * 900000));
+    }
+    function getBalance(id) {
+      return Number(localStorage.getItem("ruina_" + id) || "0");
+    }
+    function setBalance(id, amount) {
+      localStorage.setItem("ruina_" + id, String(Math.max(0, Math.floor(amount))));
+    }
+    function loadData(id) {
+      try {
+        const raw = localStorage.getItem("ruinaData_" + id);
+        if (!raw) return null;
+        const d = JSON.parse(raw);
+        // backward compatibility: older saves may have clickPower/autoLevel fields
+        if (d.clickPower !== undefined && d.baseClick === undefined) d.baseClick = d.clickPower;
+        if (d.autoLevel !== undefined && d.baseAuto === undefined) d.baseAuto = d.autoLevel;
+        return d;
+      } catch (e) {
+        return null;
+      }
+    }
+    function saveData(id, data) {
+      localStorage.setItem("ruinaData_" + id, JSON.stringify(data));
+    }
+
+    // ======= Загрузка / сохранение текущего игрока =======
+    function loadOrCreatePlayerID() {
+      let id = localStorage.getItem("playerID");
+      if (!id) {
+        id = generateRandomID();
+        localStorage.setItem("playerID", id);
+        setBalance(id, 0);
+        saveData(id, { baseClick: 1, baseAuto: 0, upgradeCost: 50, autoClickCost: 20000, selectedSkinIndex: null });
+      }
+      return id;
+    }
 
     function loadPlayer() {
-      playerID = localStorage.getItem("playerID");
-      if (!playerID) {
-        playerID = generateRandomID();
-        localStorage.setItem("playerID", playerID);
-        setBalance(playerID, 0);
-      }
+      playerID = loadOrCreatePlayerID();
       document.getElementById("playerId").innerText = "ID: " + playerID;
+
+      const saved = loadData(playerID);
+      if (saved) {
+        baseClick = saved.baseClick !== undefined ? saved.baseClick : (saved.clickPower !== undefined ? saved.clickPower : 1);
+        baseAuto = saved.baseAuto !== undefined ? saved.baseAuto : (saved.autoLevel !== undefined ? saved.autoLevel : 0);
+        upgradeCost = saved.upgradeCost !== undefined ? saved.upgradeCost : 50;
+        autoClickCost = saved.autoClickCost !== undefined ? saved.autoClickCost : 20000;
+        selectedSkinIndex = saved.selectedSkinIndex !== undefined ? saved.selectedSkinIndex : null;
+      } else {
+        // defaults
+        baseClick = 1;
+        baseAuto = 0;
+        upgradeCost = 50;
+        autoClickCost = 20000;
+        selectedSkinIndex = null;
+        saveData(playerID, { baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkinIndex });
+      }
+
       ruina = getBalance(playerID);
-      const d = loadData(playerID);
-      clickPower = d.clickPower || 1;
-      upgradeCost = d.upgradeCost || 50;
-      autoClickLevel = d.autoClickLevel || 0;
-      autoClickCost = d.autoClickCost || 20000;
-      selectedSkinIndex = d.selectedSkinIndex ?? null;
+      applySkinBonuses(); // вычисляем effClick/effAuto
       updateUI();
-      if (autoClickLevel > 0) startAutoClick();
-      applySkinBonus();
+      if (effAuto > 0) startAutoClick();
     }
 
     function savePlayer() {
       setBalance(playerID, ruina);
-      saveData(playerID, { clickPower, upgradeCost, autoClickLevel, autoClickCost, selectedSkinIndex });
+      saveData(playerID, { baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkinIndex });
     }
 
-    function applySkinBonus() {
-      let clickBonus = 1, autoBonus = 1;
-      if (selectedSkinIndex !== null) {
-        const s = skins[selectedSkinIndex];
-        clickBonus *= s.bonus.clickMult;
-        autoBonus *= s.bonus.autoMult;
-        document.getElementById("tapButton").src = s.img;
+    // ======= Бонусы от скина (без накрутки) =======
+    function applySkinBonuses() {
+      let clickMult = 1, autoMult = 1;
+      if (selectedSkinIndex !== null && skins[selectedSkinIndex]) {
+        const skin = skins[selectedSkinIndex];
+        clickMult = skin.bonus?.clickMult ?? 1;
+        autoMult = skin.bonus?.autoMult ?? 1;
+        // показать картинку скина
+        document.getElementById("tapButton").src = skin.img;
+      } else {
+        document.getElementById("tapButton").src = "https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png";
       }
-      document.getElementById("clickPowerDisplay").innerText = "Click Power: +" + Math.floor(clickPower * clickBonus);
-      return {clickBonus,autoBonus};
+      // effClick и effAuto не записываются в save — это производные
+      effClick = Math.max(0, Math.floor(baseClick * clickMult));
+      effAuto = Math.max(0, Math.floor(baseAuto * autoMult));
     }
 
+    // ======= UI обновление =======
     function updateUI() {
-      const {clickBonus,autoBonus} = applySkinBonus();
+      applySkinBonuses();
       document.getElementById("score").innerText = "RUINA: " + ruina;
+      document.getElementById("clickPowerDisplay").innerText = "Click Power: +" + effClick + (effClick !== baseClick ? ` (base ${baseClick})` : "");
       document.getElementById("upgradeCost").innerText = upgradeCost;
-      document.getElementById("autoClickLevel").innerText = autoClickLevel;
+      document.getElementById("autoClickLevel").innerText = baseAuto;
       document.getElementById("autoClickCost").innerText = autoClickCost;
+      // пометим выбранный скин в магазине
+      markSelectedSkin();
     }
 
+    // ======= Игровая логика =======
     function tap() {
-      const {clickBonus} = applySkinBonus();
-      ruina += Math.floor(clickPower * clickBonus);
-      updateUI(); savePlayer();
+      ruina += effClick;
+      updateUI();
+      savePlayer();
     }
 
     function buyUpgrade() {
       if (ruina >= upgradeCost) {
         ruina -= upgradeCost;
-        clickPower++;
+        baseClick++;
         upgradeCost = Math.floor(upgradeCost * 1.5);
-        updateUI(); savePlayer();
-        showMsg("Upgrade bought!");
+        updateUI();
+        savePlayer();
+        showMsg("Upgrade bought! Base click +" + (baseClick?0:0));
       } else showMsg("Not enough RUINA");
     }
 
     function buyAutoClick() {
       if (ruina >= autoClickCost) {
         ruina -= autoClickCost;
-        autoClickLevel++;
+        baseAuto++;
         autoClickCost = Math.floor(autoClickCost * 1.5);
+        applySkinBonuses();
         startAutoClick();
-        updateUI(); savePlayer();
-        showMsg("AutoClick upgraded! Lvl " + autoClickLevel);
+        updateUI();
+        savePlayer();
+        showMsg("AutoClick upgraded! Base auto level: " + baseAuto);
       } else showMsg("Not enough RUINA");
     }
 
     function startAutoClick() {
-      if (autoClickInterval) clearInterval(autoClickInterval);
-      autoClickInterval = setInterval(() => {
-        const {autoBonus} = applySkinBonus();
-        ruina += Math.floor(autoClickLevel * autoBonus);
-        updateUI(); savePlayer();
+      if (autoInterval) clearInterval(autoInterval);
+      // effAuto is recalculated in updateUI/applySkinBonuses
+      autoInterval = setInterval(() => {
+        // ensure effAuto updated
+        applySkinBonuses();
+        if (effAuto > 0) {
+          ruina += effAuto;
+          updateUI();
+          savePlayer();
+        }
       }, 1000);
     }
 
+    // ======= Магазин скинов =======
     function renderSkinShop() {
       const skinList = document.getElementById("skinList");
       skinList.innerHTML = "";
       skins.forEach((s, i) => {
         const d = document.createElement("div");
         d.className = "skin-button";
-        d.innerHTML = `<img src="${s.img}" class="skin-img"><div class="skin-info">${s.name}</div><div class="skin-info">${s.price} RUINA</div><button class="shop-button" data-i="${i}">Buy</button>`;
+        d.innerHTML = `
+          <img src="${s.img}" class="skin-img" />
+          <div class="skin-info">${s.name}</div>
+          <div class="skin-info">${s.price.toLocaleString()} RUINA</div>
+          <button class="shop-button" data-i="${i}">Buy</button>
+          <div class="selected-placeholder" data-i="${i}"></div>
+        `;
         skinList.appendChild(d);
       });
-      skinList.querySelectorAll("button").forEach(b => b.onclick = () => buySkin(+b.dataset.i));
+      // навешиваем обработчики на кнопки
+      skinList.querySelectorAll("button.shop-button").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const idx = Number(btn.dataset.i);
+          buySkin(idx);
+        });
+      });
+      markSelectedSkin();
+    }
+
+    function markSelectedSkin() {
+      // пометить кнопку "Selected" для текущего скина
+      document.querySelectorAll(".selected-placeholder").forEach(p => p.innerHTML = "");
+      if (selectedSkinIndex !== null) {
+        const placeholder = document.querySelector(`.selected-placeholder[data-i="${selectedSkinIndex}"]`);
+        if (placeholder) placeholder.innerHTML = `<div class="selected-badge">SELECTED</div>`;
+      }
     }
 
     function buySkin(i) {
       const s = skins[i];
+      if (!s) return;
       if (ruina >= s.price) {
-        ruina -= s.price; selectedSkinIndex = i;
-        updateUI(); savePlayer();
+        ruina -= s.price;
+        selectedSkinIndex = i;
+        // при покупке не меняем baseClick/baseAuto — только сохраняем выбранный скин,
+        // а реальный эффект считается в applySkinBonuses()
+        applySkinBonuses();
+        updateUI();
+        savePlayer();
         showMsg("Bought " + s.name);
       } else showMsg("Not enough RUINA");
     }
 
-    function showMsg(t) {
+    // ======= Сообщение =======
+    let msgTimeout = null;
+    function showMsg(text, t = 3000) {
       const m = document.getElementById("message");
-      m.innerText = t;
-      setTimeout(() => m.innerText = "", 3000);
+      m.innerText = text;
+      if (msgTimeout) clearTimeout(msgTimeout);
+      msgTimeout = setTimeout(() => m.innerText = "", t);
     }
 
-    // ==== Консоль ====
+    // ======= Консольные команды =======
     function handleCmd(raw) {
+      if (!raw) return;
       const a = raw.trim().split(/\s+/);
       const c = a[0]?.toLowerCase();
       if (c === "/pay") {
         const id = a[1], sum = +a[2];
-        if (!id || !sum) return showMsg("Usage: /pay id sum");
-        setBalance(id, getBalance(id) + sum);
-        if (id === playerID) ruina = getBalance(playerID);
-        updateUI(); showMsg(`Gave ${sum} to ${id}`);
+        if (!id || !sum || !Number.isFinite(sum)) return showMsg("Usage: /pay id sum");
+        setBalance(id, getBalance(id) + Math.floor(sum));
+        if (id === playerID) { ruina = getBalance(playerID); updateUI(); }
+        showMsg(`Gave ${sum} RUINA to ${id}`);
       }
       else if (c === "/click") {
         const id = a[1], p = +a[2];
-        if (!id || !p) return showMsg("Usage: /click id power");
-        const d = loadData(id);
-        d.clickPower = p;
-        saveData(id, d);
-        if (id === playerID) clickPower = p;
-        updateUI(); showMsg(`Click power for ${id} set to ${p}`);
+        if (!id || !Number.isFinite(p)) return showMsg("Usage: /click id power");
+        let dat = loadData(id) || {};
+        dat.baseClick = Math.max(0, Math.floor(p));
+        saveData(id, dat);
+        if (id === playerID) { baseClick = dat.baseClick; applySkinBonuses(); updateUI(); savePlayer(); }
+        showMsg(`Set baseClick for ${id} = ${dat.baseClick}`);
       }
       else if (c === "/changeid") {
         const oldId = a[1], newId = a[2];
         if (!oldId || !newId) return showMsg("Usage: /changeID old new");
+        // move balance
         const bal = getBalance(oldId);
         setBalance(newId, bal);
         localStorage.removeItem("ruina_" + oldId);
-        const d = loadData(oldId);
-        if (Object.keys(d).length) {
-          saveData(newId, d);
-          localStorage.removeItem("ruinaData_" + oldId);
-        }
+        // move data
+        const dat = loadData(oldId);
+        if (dat) { saveData(newId, dat); localStorage.removeItem("ruinaData_" + oldId); }
+        // if current player changed, update playerID and reload
         if (playerID === oldId) {
           playerID = newId;
           localStorage.setItem("playerID", newId);
-          ruina = bal;
-          clickPower = d.clickPower || 1;
+          loadPlayer(); // reload
         }
-        updateUI(); showMsg(`ID changed ${oldId} → ${newId}`);
-        document.getElementById("playerId").innerText = "ID: " + playerID;
+        showMsg(`ID ${oldId} → ${newId} (moved)`);
       }
       else if (c === "/balance") {
-        const id = a[1]; if (!id) return showMsg("Usage: /balance id");
+        const id = a[1];
+        if (!id) return showMsg("Usage: /balance id");
         showMsg(`${id} balance: ${getBalance(id)}`);
       }
       else if (c === "/close") {
         document.getElementById("console").style.display = "none";
-      } else showMsg("Unknown command");
+      }
+      else {
+        showMsg("Unknown command");
+      }
     }
 
+    // ======= Лидерборд (локально) =======
+    function saveScore() {
+      const name = document.getElementById("playerName").value.trim();
+      if (!name) { showMsg("Enter your name"); return; }
+      const lb = JSON.parse(localStorage.getItem("ruinaLeaderboard") || "[]");
+      const ex = lb.find(x => x.name === name);
+      if (ex) { if (ruina > ex.ruina) ex.ruina = ruina; }
+      else lb.push({ name, ruina });
+      lb.sort((a,b)=>b.ruina-a.ruina);
+      localStorage.setItem("ruinaLeaderboard", JSON.stringify(lb));
+      showLeaderboard();
+      showMsg("Score saved");
+    }
+    function showLeaderboard() {
+      const lb = JSON.parse(localStorage.getItem("ruinaLeaderboard") || "[]");
+      const ul = document.getElementById("leaderboard");
+      ul.innerHTML = "";
+      lb.slice(0,5).forEach((e,i) => {
+        const li = document.createElement("li");
+        li.innerText = `${i+1}. ${e.name} — ${e.ruina} RUINA`;
+        ul.appendChild(li);
+      });
+    }
+
+    // ======= Инициализация и обработчики =======
     document.addEventListener("DOMContentLoaded", () => {
-      loadPlayer(); renderSkinShop();
-      document.getElementById("tapButton").onclick = tap;
-      document.getElementById("buyUpgradeBtn").onclick = buyUpgrade;
-      document.getElementById("buyAutoClickBtn").onclick = buyAutoClick;
-      document.getElementById("playerId").ondblclick = () => {
+      loadPlayer();
+      renderSkinShop();
+      updateUI();
+      showLeaderboard();
+
+      document.getElementById("tapButton").addEventListener("click", tap);
+      document.getElementById("buyUpgradeBtn").addEventListener("click", buyUpgrade);
+      document.getElementById("buyAutoClickBtn").addEventListener("click", buyAutoClick);
+      document.getElementById("saveScoreBtn").addEventListener("click", saveScore);
+
+      document.getElementById("playerId").addEventListener("dblclick", () => {
         const c = document.getElementById("console");
         c.style.display = c.style.display === "block" ? "none" : "block";
         if (c.style.display === "block") document.getElementById("consoleInput").focus();
-      };
-      document.getElementById("consoleInput").addEventListener("keydown", e => {
+      });
+
+      document.getElementById("consoleInput").addEventListener("keydown", (e) => {
         if (e.key === "Enter") { handleCmd(e.target.value); e.target.value = ""; }
       });
+
+      // autosave
+      setInterval(savePlayer, 5000);
+      window.addEventListener("beforeunload", savePlayer);
     });
   </script>
 </body>
 </html>
-
-
