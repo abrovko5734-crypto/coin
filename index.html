@@ -14,6 +14,20 @@
       margin: 0;
     }
 
+    #playerId {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background-color: #1a1a1a;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: #00ffd5;
+      font-weight: bold;
+      font-size: 16px;
+      box-shadow: 0 0 10px #00ffd5;
+      z-index: 9999;
+    }
+
     h1 {
       font-size: 32px;
       color: #ff00aa;
@@ -92,15 +106,15 @@
   </style>
 </head>
 <body>
+  <!-- Случайный ID игрока -->
+  <div id="playerId">ID: ??????</div>
+
   <h1>RUINACOIN TAP</h1>
   <div id="score">RUINA: 0</div>
   <div id="clickPowerDisplay">Click Power: +1</div>
 
   <!-- Tap Button Image -->
-  <img src="https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png"
-       alt="RUINA Button"
-       class="tap-image"
-       onclick="tap()">
+  <img src="https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png" alt="RUINA Button" class="tap-image" onclick="tap()">
 
   <!-- Upgrade Shop -->
   <div class="shop">
@@ -125,184 +139,136 @@
   <div id="message"></div>
 
   <script>
-let ruina = 0;
-let clickPower = 1;
-let upgradeCost = 50;
-let autoClickEnabled = false;
+    let ruina = 0;
+    let clickPower = 1;
+    let upgradeCost = 50;
+    let autoClickEnabled = false;
 
-// Список запрещённых слов
-function containsBadWords(name) {
-  const badWords = ["хуй", "пизда", "еба", "сука", "бляд", "fuck", "shit", "bitch", "писюн", "песюн", "песун", "члэн", "член", "ебаба", "ебоба"];
-  const lowerName = name.toLowerCase();
-  return badWords.some(word => lowerName.includes(word));
-}
-
-// Сохранение очков вручную
-function saveScore() {
-  const name = document.getElementById("playerName").value.trim();
-  if (!name) {
-    showMessage("Enter your name to save score.");
-    return;
-  }
-  if (containsBadWords(name)) {
-    showMessage("Inappropriate name. Please choose a different one.");
-    return;
-  }
-
-  const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
-  const existing = leaderboard.find(entry => entry.name === name);
-
-  if (existing) {
-    if (ruina > existing.ruina) {
-      existing.ruina = ruina;
-      showMessage("New high score saved!");
-    } else {
-      showMessage("Your previous score is higher.");
+    function generateRandomID() {
+      return Math.floor(100000 + Math.random() * 900000); // 6-значный ID
     }
-  } else {
-    leaderboard.push({ name, ruina });
-    showMessage("Score saved!");
-  }
 
-  leaderboard.sort((a, b) => b.ruina - a.ruina);
-  localStorage.setItem("ruinaLeaderboard", JSON.stringify(leaderboard));
-  showLeaderboard();
-}
-
-// Автосохранение каждые 15 секунд
-function autoSaveScore() {
-  const name = document.getElementById("playerName").value.trim();
-  if (!name || containsBadWords(name)) return;
-
-  const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
-  const existing = leaderboard.find(entry => entry.name === name);
-
-  if (existing) {
-    if (ruina > existing.ruina) {
-      existing.ruina = ruina;
+    function loadOrCreatePlayerID() {
+      let id = localStorage.getItem("playerID");
+      if (!id) {
+        id = generateRandomID();
+        localStorage.setItem("playerID", id);
+      }
+      document.getElementById("playerId").innerText = "ID: " + id;
     }
-  } else {
-    leaderboard.push({ name, ruina });
-  }
 
-  leaderboard.sort((a, b) => b.ruina - a.ruina);
-  localStorage.setItem("ruinaLeaderboard", JSON.stringify(leaderboard));
-  showLeaderboard();
-}
+    function containsBadWords(name) {
+      const badWords = ["хуй", "пизда", "еба", "сука", "бляд", "fuck", "shit", "bitch", "писюн", "песюн", "песун", "члэн", "член", "ебаба", "ебоба"];
+      const lowerName = name.toLowerCase();
+      return badWords.some(word => lowerName.includes(word));
+    }
 
-// Позиции в лидерборде
-function showLeaderboard() {
-  const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
-  const list = document.getElementById("leaderboard");
-  list.innerHTML = "";
+    function tap() {
+      ruina += clickPower;
+      updateScore();
+      saveData();
+    }
 
-  leaderboard.slice(0, 5).forEach((entry, index) => {
-    const li = document.createElement("li");
-    li.innerText = `${index + 1}. ${entry.name} — ${entry.ruina} RUINA`;
-    list.appendChild(li);
-  });
-}
+    function buyUpgrade() {
+      if (ruina >= upgradeCost) {
+        clickPower += 1;
+        ruina -= upgradeCost;
+        upgradeCost = Math.floor(upgradeCost * 1.5);
+        document.getElementById('upgradeCost').innerText = upgradeCost;
+        updateScore();
+        showMessage("Upgrade purchased! Click power is now +" + clickPower);
+        saveData();
+      } else {
+        showMessage("Not enough RUINA to buy upgrade.");
+      }
+    }
 
-window.onload = function () {
-  const saved = JSON.parse(localStorage.getItem("ruinaData"));
-  if (saved) {
-    ruina = saved.ruina || 0;
-    clickPower = saved.clickPower || 1;
-    upgradeCost = saved.upgradeCost || 50;
-    autoClickEnabled = saved.autoClickEnabled || false;
-    document.getElementById('upgradeCost').innerText = upgradeCost;
-    updateScore();
-    if (autoClickEnabled) startAutoClick();
-  }
-  showLeaderboard();
-  saveData();
+    function buyAutoClick() {
+      if (autoClickEnabled) {
+        showMessage("Auto Click is already active.");
+        return;
+      }
+      if (ruina >= 100000) {
+        ruina -= 100000;
+        autoClickEnabled = true;
+        updateScore();
+        showMessage("Auto Click activated! +" + clickPower + " RUINA every second.");
+        startAutoClick();
+        saveData();
+      } else {
+        showMessage("Not enough RUINA to activate Auto Click.");
+      }
+    }
 
-  // Автосохранение каждые 15 секунд
-  setInterval(() => {
-    autoSaveScore();
-  }, 15000);
-};
+    function startAutoClick() {
+      setInterval(() => {
+        ruina += clickPower;
+        updateScore();
+        saveData();
+      }, 1000);
+    }
 
-function tap() {
-  ruina += clickPower;
-  updateScore();
-  saveData();
-}
+    function updateScore() {
+      document.getElementById('score').innerText = 'RUINA: ' + ruina;
+      document.getElementById('clickPowerDisplay').innerText = 'Click Power: +' + clickPower;
+    }
 
-function buyUpgrade() {
-  if (ruina >= upgradeCost) {
-    clickPower += 1;
-    ruina -= upgradeCost;
-    upgradeCost = Math.floor(upgradeCost * 1.5);
-    document.getElementById('upgradeCost').innerText = upgradeCost;
-    updateScore();
-    showMessage("Upgrade purchased! Click power is now +" + clickPower);
-    saveData();
-  } else {
-    showMessage("Not enough RUINA to buy upgrade.");
-  }
-}
+    function showMessage(text) {
+      const msg = document.getElementById('message');
+      msg.innerText = text;
+      msg.style.opacity = 1;
+      setTimeout(() => {
+        msg.style.opacity = 0;
+      }, 3000);
+    }
 
-function buyAutoClick() {
-  if (autoClickEnabled) {
-    showMessage("Auto Click is already active.");
-    return;
-  }
-  if (ruina >= 100000) {
-    ruina -= 100000;
-    autoClickEnabled = true;
-    updateScore();
-    showMessage("Auto Click activated! +" + clickPower + " RUINA every second.");
-    startAutoClick();
-    saveData();
-  } else {
-    showMessage("Not enough RUINA to activate Auto Click.");
-  }
-}
+    function saveData() {
+      const data = { ruina, clickPower, upgradeCost, autoClickEnabled };
+      localStorage.setItem("ruinaData", JSON.stringify(data));
+    }
 
-function startAutoClick() {
-  setInterval(() => {
-    ruina += clickPower;
-    updateScore();
-    saveData();
-  }, 1000);
-}
-
-function updateScore() {
-  document.getElementById('score').innerText = 'RUINA: ' + ruina;
-  document.getElementById('clickPowerDisplay').innerText = 'Click Power: +' + clickPower;
-}
-
-function showMessage(text) {
-  const msg = document.getElementById('message');
-  msg.innerText = text;
-  msg.style.opacity = 1;
-  setTimeout(() => {
-    msg.style.opacity = 0;
-  }, 3000);
-}
-
-function saveData() {
-  const data = {
-    ruina,
-    clickPower,
-    upgradeCost,
-    autoClickEnabled
-  };
-  localStorage.setItem("ruinaData", JSON.stringify(data));
-}
-      function saveScore() {
+    function saveScore() {
       const name = document.getElementById("playerName").value.trim();
       if (!name) {
         showMessage("Enter your name to save score.");
         return;
       }
-
+      if (containsBadWords(name)) {
+        showMessage("Inappropriate name. Please choose a different one.");
+        return;
+      }
       const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
-      leaderboard.push({ name, ruina });
+      const existing = leaderboard.find(entry => entry.name === name);
+      if (existing) {
+        if (ruina > existing.ruina) {
+          existing.ruina = ruina;
+          showMessage("New high score saved!");
+        } else {
+          showMessage("Your previous score is higher.");
+        }
+      } else {
+        leaderboard.push({ name, ruina });
+        showMessage("Score saved!");
+      }
       leaderboard.sort((a, b) => b.ruina - a.ruina);
-      const top5 = leaderboard.slice(0, 5);
-      localStorage.setItem("ruinaLeaderboard", JSON.stringify(top5));
+      localStorage.setItem("ruinaLeaderboard", JSON.stringify(leaderboard));
+      showLeaderboard();
+    }
+
+    function autoSaveScore() {
+      const name = document.getElementById("playerName").value.trim();
+      if (!name || containsBadWords(name)) return;
+      const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
+      const existing = leaderboard.find(entry => entry.name === name);
+      if (existing) {
+        if (ruina > existing.ruina) {
+          existing.ruina = ruina;
+        }
+      } else {
+        leaderboard.push({ name, ruina });
+      }
+      leaderboard.sort((a, b) => b.ruina - a.ruina);
+      localStorage.setItem("ruinaLeaderboard", JSON.stringify(leaderboard));
       showLeaderboard();
     }
 
@@ -310,15 +276,31 @@ function saveData() {
       const leaderboard = JSON.parse(localStorage.getItem("ruinaLeaderboard")) || [];
       const list = document.getElementById("leaderboard");
       list.innerHTML = "";
-      leaderboard.forEach((entry, index) => {
+      leaderboard.slice(0, 5).forEach((entry, index) => {
         const li = document.createElement("li");
         li.innerText = `${index + 1}. ${entry.name} — ${entry.ruina} RUINA`;
         list.appendChild(li);
       });
     }
+
+    window.onload = function () {
+      const saved = JSON.parse(localStorage.getItem("ruinaData"));
+      if (saved) {
+        ruina = saved.ruina || 0;
+        clickPower = saved.clickPower || 1;
+        upgradeCost = saved.upgradeCost || 50;
+        autoClickEnabled = saved.autoClickEnabled || false;
+        document.getElementById('upgradeCost').innerText = upgradeCost;
+        updateScore();
+        if (autoClickEnabled) startAutoClick();
+      }
+      showLeaderboard();
+      saveData();
+      loadOrCreatePlayerID();
+      setInterval(() => {
+        autoSaveScore();
+      }, 15000);
+    };
   </script>
 </body>
 </html>
-
-
-
