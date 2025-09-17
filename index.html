@@ -63,6 +63,38 @@
     <div id="adminContent"></div>
     <button id="closeAdmin">Закрыть</button>
   </div>
+  // открыть панель админа через команду /admin
+function handleConsoleCommand(cmd) {
+  const parts = cmd.split(" ");
+  const command = parts[0];
+  
+  if (command === "/admin") {
+    document.getElementById("adminPanel").style.display = "block";
+    renderAdminInfo();
+    showMsg("Панель админа открыта");
+  }
+  // ... сюда можно добавить другие команды
+}
+
+// закрыть панель по кнопке
+document.getElementById("closeAdmin").addEventListener("click", () => {
+  document.getElementById("adminPanel").style.display = "none";
+});
+
+// функция заполнения админки данными
+function renderAdminInfo() {
+  const content = document.getElementById("adminContent");
+  content.innerHTML = "";
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith("ruinaData_")) {
+      const id = key.replace("ruinaData_", "");
+      const data = JSON.parse(localStorage.getItem(key));
+      const balance = getBalance(id);
+      content.innerHTML += `<div><b>ID ${id}</b> — Баланс: ${balance} RUINA — Click: ${data.baseClick}, Auto: ${data.baseAuto}</div>`;
+    }
+  }
+}
 
 <script>
   let ruina = 0;
@@ -304,3 +336,4 @@
 </script>
 </body>
 </html>
+
