@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>RUINACOIN TAP</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       background-color: #0f0f0f;
@@ -103,10 +103,37 @@
       font-size: 16px;
       margin: 4px 0;
     }
+
+    /* Доп стили для скинов */
+    .skin-button {
+      display: inline-block;
+      margin: 10px;
+      border: 2px solid #00ffd5;
+      border-radius: 12px;
+      cursor: pointer;
+      padding: 8px;
+      background-color: #111;
+      transition: background-color 0.3s ease;
+      max-width: 150px;
+    }
+    .skin-button:hover {
+      background-color: #222;
+    }
+    .skin-img {
+      max-width: 100%;
+      border-radius: 10px;
+      display: block;
+      margin-bottom: 6px;
+      box-shadow: 0 0 10px #00ffd5;
+    }
+    .skin-info {
+      color: #00ffd5;
+      font-size: 14px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <!-- Случайный ID игрока -->
   <div id="playerId">ID: ??????</div>
 
   <h1>RUINACOIN TAP</h1>
@@ -114,28 +141,30 @@
   <div id="clickPowerDisplay">Click Power: +1</div>
 
   <!-- Tap Button Image -->
-  <img src="https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png" alt="RUINA Button" class="tap-image" onclick="tap()">
+  <img id="tapButton" src="https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png" alt="RUINA Button" class="tap-image" onclick="tap()">
 
-  <!-- Upgrade Shop -->
   <div class="shop">
     <h2>Upgrade Shop</h2>
     <button class="shop-button" onclick="buyUpgrade()">Add +1 per click — <span id="upgradeCost">50</span> RUINA</button>
     <button class="shop-button" onclick="buyAutoClick()">Enable Auto Click — 100,000 RUINA</button>
   </div>
 
-  <!-- Player Name Input -->
+  <!-- Skin Shop -->
+  <div class="shop">
+    <h2>Skin Shop</h2>
+    <div id="skinList"></div>
+  </div>
+
   <div style="margin-top: 20px;">
     <input type="text" id="playerName" placeholder="Enter your name" style="padding: 8px; border-radius: 5px;">
     <button onclick="saveScore()" class="shop-button">Save Score</button>
   </div>
 
-  <!-- Leaderboard -->
   <div style="margin-top: 30px;">
     <h2 style="color:#00ffd5;">Leaderboard</h2>
     <ul id="leaderboard"></ul>
   </div>
 
-  <!-- Message Box -->
   <div id="message"></div>
 
   <script>
@@ -143,6 +172,43 @@
     let clickPower = 1;
     let upgradeCost = 50;
     let autoClickEnabled = false;
+
+    // Массив скинов — добавляем сюда твои картинки и цены
+    const skins = [
+      {
+        name: "Skin 1",
+        price: 10000,
+        img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg"
+      },
+      {
+        name: "Skin 2",
+        price: 25000,
+        img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg"
+      },
+      {
+        name: "Skin 3",
+        price: 50000,
+        img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg"
+      },
+      {
+        name: "Skin 4",
+        price: 120000,
+        img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg"
+      },
+      {
+        name: "Skin 5",
+        price: 350000,
+        img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg"
+      },
+      {
+        name: "Skin 6",
+        price: 676767,
+        img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg"
+      }
+    ];
+
+    // Выбранный скин (индекс в массиве)
+    let selectedSkinIndex = null;
 
     function generateRandomID() {
       return Math.floor(100000 + Math.random() * 900000); // 6-значный ID
@@ -222,8 +288,55 @@
       }, 3000);
     }
 
+    // Покупка скина
+    function buySkin(index) {
+      const skin = skins[index];
+      if (selectedSkinIndex === index) {
+        showMessage("You already own this skin.");
+        return;
+      }
+      if (ruina >= skin.price) {
+        ruina -= skin.price;
+        selectedSkinIndex = index;
+        updateScore();
+        updateSkin();
+        showMessage(`You bought ${skin.name}!`);
+        saveData();
+      } else {
+        showMessage("Not enough RUINA to buy this skin.");
+      }
+    }
+
+    // Обновление изображения кнопки по выбранному скину
+    function updateSkin() {
+      const tapButton = document.getElementById("tapButton");
+      if (selectedSkinIndex !== null) {
+        tapButton.src = skins[selectedSkinIndex].img;
+      } else {
+        tapButton.src = "https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png";
+      }
+    }
+
+    // Отрисовка списка скинов в магазине
+    function renderSkinShop() {
+      const skinList = document.getElementById("skinList");
+      skinList.innerHTML = "";
+      skins.forEach((skin, i) => {
+        const div = document.createElement("div");
+        div.className = "skin-button";
+
+        div.innerHTML = `
+          <img src="${skin.img}" alt="${skin.name}" class="skin-img" />
+          <div class="skin-info">${skin.name}</div>
+          <div class="skin-info">Price: ${skin.price.toLocaleString()} RUINA</div>
+          <button onclick="buySkin(${i})" class="shop-button">Buy</button>
+        `;
+        skinList.appendChild(div);
+      });
+    }
+
     function saveData() {
-      const data = { ruina, clickPower, upgradeCost, autoClickEnabled };
+      const data = { ruina, clickPower, upgradeCost, autoClickEnabled, selectedSkinIndex };
       localStorage.setItem("ruinaData", JSON.stringify(data));
     }
 
@@ -290,10 +403,13 @@
         clickPower = saved.clickPower || 1;
         upgradeCost = saved.upgradeCost || 50;
         autoClickEnabled = saved.autoClickEnabled || false;
+        selectedSkinIndex = saved.selectedSkinIndex !== undefined ? saved.selectedSkinIndex : null;
         document.getElementById('upgradeCost').innerText = upgradeCost;
         updateScore();
         if (autoClickEnabled) startAutoClick();
       }
+      renderSkinShop();
+      updateSkin();
       showLeaderboard();
       saveData();
       loadOrCreatePlayerID();
