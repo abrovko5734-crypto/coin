@@ -63,39 +63,7 @@
     <div id="adminContent"></div>
     <button id="closeAdmin">Закрыть</button>
   </div>
-  // открыть панель админа через команду /admin
-function handleConsoleCommand(cmd) {
-  const parts = cmd.split(" ");
-  const command = parts[0];
-  
-  if (command === "/admin") {
-    document.getElementById("adminPanel").style.display = "block";
-    renderAdminInfo();
-    showMsg("Панель админа открыта");
-  }
-  // ... сюда можно добавить другие команды
-}
-
-// закрыть панель по кнопке
-document.getElementById("closeAdmin").addEventListener("click", () => {
-  document.getElementById("adminPanel").style.display = "none";
-});
-
-// функция заполнения админки данными
-function renderAdminInfo() {
-  const content = document.getElementById("adminContent");
-  content.innerHTML = "";
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith("ruinaData_")) {
-      const id = key.replace("ruinaData_", "");
-      const data = JSON.parse(localStorage.getItem(key));
-      const balance = getBalance(id);
-      content.innerHTML += `<div><b>ID ${id}</b> — Баланс: ${balance} RUINA — Click: ${data.baseClick}, Auto: ${data.baseAuto}</div>`;
-    }
-  }
-}
-
+ 
 <script>
   let ruina = 0;
   let baseClick = 1;
@@ -333,7 +301,75 @@ function renderAdminInfo() {
     setInterval(savePlayer, 5000);
     window.addEventListener("beforeunload", savePlayer);
   });
+  // слушатель на ID
+const playerIdEl = document.getElementById("playerId");
+let clickCount = 0;
+let clickTimer = null;
+
+playerIdEl.addEventListener("click", () => {
+  clickCount++;
+  if (!clickTimer) {
+    clickTimer = setTimeout(() => {
+      if (clickCount === 2) {
+        // двойной клик = открыть/закрыть консоль
+        const consoleEl = document.getElementById("console");
+        consoleEl.style.display = consoleEl.style.display === "none" ? "block" : "none";
+      } else if (clickCount === 3) {
+        // тройной клик = открыть админку
+        renderAdminInfo();
+        document.getElementById("adminPanel").style.display = "block";
+        showMsg("Админ-панель открыта");
+      }
+      clickCount = 0;
+      clickTimer = null;
+    }, 400); // интервал для двойного/тройного клика
+  }
+});
+
+// закрыть админку кнопкой
+document.getElementById("closeAdmin").addEventListener("click", () => {
+  document.getElementById("adminPanel").style.display = "none";
+});
+
+// ввод команд в консоль
+document.getElementById("consoleInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") {
+    const cmd = e.target.value.trim();
+    if (cmd) handleConsoleCommand(cmd);
+    e.target.value = "";
+  }
+});
+
+// команды консоли
+function handleConsoleCommand(cmd) {
+  const parts = cmd.split(" ");
+  const command = parts[0];
+
+  if (command === "/admin") {
+    renderAdminInfo();
+    document.getElementById("adminPanel").style.display = "block";
+    showMsg("Админ-панель открыта");
+  }
+  // можно добавить сюда другие команды (/pay, /click и т.д.)
+}
+
+// генерация данных в админке
+function renderAdminInfo() {
+  const content = document.getElementById("adminContent");
+  content.innerHTML = "";
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith("ruinaData_")) {
+      const id = key.replace("ruinaData_", "");
+      const data = JSON.parse(localStorage.getItem(key));
+      const balance = getBalance(id);
+      content.innerHTML += `<div><b>ID ${id}</b> — Баланс: ${balance} RUINA — Click: ${data.baseClick}, Auto: ${data.baseAuto}</div>`;
+    }
+  }
+}
+
 </script>
 </body>
 </html>
+
 
