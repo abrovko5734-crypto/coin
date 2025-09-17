@@ -21,7 +21,7 @@
     .skin-button:hover { background:#222; }
     .skin-img { max-width:100%; border-radius:10px; display:block; margin:0 auto 6px; box-shadow:0 0 10px #00ffd5; }
     .skin-info { color:#00ffd5; font-size:14px; font-weight:bold; }
-    #console { position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.95); border-top:2px solid #00ffd5; padding:10px; display:block; z-index:10000; }
+    #console { position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.95); border-top:2px solid #00ffd5; padding:10px; display:none; z-index:10000; }
     #consoleInput { width:95%; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:8px; color:#00ffd5; font-size:16px; outline:none; }
     .hint { font-size:12px; color:#999; margin-top:6px; text-align:left; max-width:900px; margin-left:auto; margin-right:auto; }
     .selected-badge { display:inline-block; margin-top:6px; padding:4px 8px; background:#00ffd5; color:#000; border-radius:8px; font-weight:bold; font-size:12px; }
@@ -55,7 +55,7 @@
 
   <div id="console">
     <input type="text" id="consoleInput" placeholder="Команды: /pay id сумма, /click id сила, /changeID old new, /balance id, /close" />
-    <div class="hint">Примеры: <b>/pay 123456 500</b> — дать 500 RUINA id; <b>/click 123456 60</b> — назначить clickPower 60 пользователю; <b>/changeID 111111 222222</b> — смена ID.</div>
+    <div class="hint">Примеры: <b>/pay 123456 500</b>, <b>/click 123456 60</b>, <b>/changeID 111111 222222</b></div>
   </div>
 
   <div id="adminPanel">
@@ -79,7 +79,6 @@
   let purchasedSkins = [];
   let playerID = null;
 
-  // поменял Skin 1 и Skin 4 местами
   const skins = [
     { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
     { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.25, autoMult: 1 } },
@@ -233,20 +232,59 @@
     msgTimeout = setTimeout(() => m.innerText = "", t);
   }
 
-  // Консоль
-  document.getElementById("consoleInput").addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      const cmd = e.target.value.trim();
-      if (!cmd) return;
-      e.target.value = "";
-      handleConsoleCommand(cmd);
+  // слушатель на ID
+  const playerIdEl = document.getElementById("playerId");
+  let clickCount = 0;
+  let clickTimer = null;
+
+  playerIdEl.addEventListener("click", () => {
+    clickCount++;
+    if (!clickTimer) {
+      clickTimer = setTimeout(() => {
+        if (clickCount === 2) {
+          const consoleEl = document.getElementById("console");
+          consoleEl.style.display = consoleEl.style.display === "none" ? "block" : "none";
+        } else if (clickCount === 3) {
+          const adminEl = document.getElementById("adminPanel");
+          if (adminEl.style.display === "block") {
+            adminEl.style.display = "none";
+            showMsg("Админ-панель закрыта");
+          } else {
+            renderAdminInfo();
+            adminEl.style.display = "block";
+            showMsg("Админ-панель открыта");
+          }
+        }
+        clickCount = 0;
+        clickTimer = null;
+      }, 400);
     }
   });
 
+  // закрыть админку кнопкой
+  document.getElementById("closeAdmin").addEventListener("click", () => {
+    document.getElementById("adminPanel").style.display = "none";
+  });
+
+  // ввод команд в консоль
+  document.getElementById("consoleInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const cmd = e.target.value.trim();
+      if (cmd) handleConsoleCommand(cmd);
+      e.target.value = "";
+    }
+  });
+
+  // команды консоли
   function handleConsoleCommand(cmd) {
     const parts = cmd.split(" ");
     const command = parts[0];
-    if (command === "/pay" && parts.length === 3) {
+
+    if (command === "/admin") {
+      renderAdminInfo();
+      document.getElementById("adminPanel").style.display = "block";
+      showMsg("Админ-панель открыта");
+    } else if (command === "/pay" && parts.length === 3) {
       const id = parts[1];
       const sum = parseInt(parts[2]);
       if (!isNaN(sum)) {
@@ -293,83 +331,7 @@
     }
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    loadPlayer();
-    renderSkinShop();
-    updateUI();
-    document.getElementById("tapButton").addEventListener("click", tap);
-    setInterval(savePlayer, 5000);
-    window.addEventListener("beforeunload", savePlayer);
-  });
-  // слушатель на ID
-const playerIdEl = document.getElementById("playerId");
-let clickCount = 0;
-let clickTimer = null;
-
-playerIdEl.addEventListener("click", () => {
-  clickCount++;
-  if (!clickTimer) {
-    clickTimer = setTimeout(() => {
-      if (clickCount === 2) {
-        // двойной клик = открыть/закрыть консоль
-        const consoleEl = document.getElementById("console");
-        consoleEl.style.display = consoleEl.style.display === "none" ? "block" : "none";
-      } else if (clickCount === 3) {
-        // тройной клик = открыть админку
-        renderAdminInfo();
-        document.getElementById("adminPanel").style.display = "block";
-        showMsg("Админ-панель открыта");
-      }
-      clickCount = 0;
-      clickTimer = null;
-    }, 400); // интервал для двойного/тройного клика
-  }
-});
-
-// закрыть админку кнопкой
-document.getElementById("closeAdmin").addEventListener("click", () => {
-  document.getElementById("adminPanel").style.display = "none";
-});
-
-// ввод команд в консоль
-document.getElementById("consoleInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") {
-    const cmd = e.target.value.trim();
-    if (cmd) handleConsoleCommand(cmd);
-    e.target.value = "";
-  }
-});
-
-// команды консоли
-function handleConsoleCommand(cmd) {
-  const parts = cmd.split(" ");
-  const command = parts[0];
-
-  if (command === "/admin") {
-    renderAdminInfo();
-    document.getElementById("adminPanel").style.display = "block";
-    showMsg("Админ-панель открыта");
-  }
-  // можно добавить сюда другие команды (/pay, /click и т.д.)
-}
-
-// генерация данных в админке
-function renderAdminInfo() {
-  const content = document.getElementById("adminContent");
-  content.innerHTML = "";
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key.startsWith("ruinaData_")) {
-      const id = key.replace("ruinaData_", "");
-      const data = JSON.parse(localStorage.getItem(key));
-      const balance = getBalance(id);
-      content.innerHTML += `<div><b>ID ${id}</b> — Баланс: ${balance} RUINA — Click: ${data.baseClick}, Auto: ${data.baseAuto}</div>`;
-    }
-  }
-}
-
-</script>
-</body>
-</html>
-
-
+  function renderAdminInfo() {
+    const content = document.getElementById("adminContent");
+    content.innerHTML = "";
+    for (let i = 0; i < localStorage.length; i++) {
