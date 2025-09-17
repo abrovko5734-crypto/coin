@@ -76,16 +76,14 @@
     let playerID = null;
 
     const skins = [
-      { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus:{clickMult:1.1,autoMult:1}},
-      { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg", bonus:{clickMult:1.25,autoMult:1}},
-      { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg", bonus:{clickMult:1.5,autoMult:1}},
-      { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus:{clickMult:1,autoMult:2}},
-      { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg", bonus:{clickMult:1,autoMult:3}},
-      { name: "Пацан с 67", price: 676767, img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg", bonus:{clickMult:3,autoMult:3}}
-    ];
-
+  { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg" },
+  { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg" },
+  { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg" },
+  { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg" },
+  { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg" },
+  { name: "Skin 6", price: 676767, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg" }
+];
     function generateRandomID() { return String(Math.floor(100000 + Math.random() * 900000)); }
-
     function getBalance(id) { return Number(localStorage.getItem("ruina_" + id) || "0"); }
     function setBalance(id, amount) { localStorage.setItem("ruina_" + id, String(Math.max(0, Math.floor(amount)))); }
 
@@ -266,3 +264,4 @@
   </script>
 </body>
 </html>
+
