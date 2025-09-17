@@ -17,17 +17,14 @@
     .shop-button { font-size:16px; margin:8px; padding:10px 20px; background:#222; color:#fff; border:2px solid #00ffd5; border-radius:10px; cursor:pointer; transition:background-color .2s ease; }
     .shop-button:hover { background:#333; }
     #message { margin-top:20px; font-size:18px; color:#ffcc00; min-height:24px; }
-    #leaderboard { list-style:none; padding:0; margin-top:20px; }
-    #leaderboard li { font-size:16px; margin:4px 0; }
     .skin-button { display:inline-block; margin:10px; border:2px solid #00ffd5; border-radius:12px; cursor:pointer; padding:8px; background:#111; transition:background-color .3s ease; max-width:160px; text-align:center; }
     .skin-button:hover { background:#222; }
     .skin-img { max-width:100%; border-radius:10px; display:block; margin:0 auto 6px; box-shadow:0 0 10px #00ffd5; }
     .skin-info { color:#00ffd5; font-size:14px; font-weight:bold; }
-    #console { position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.95); border-top:2px solid #00ffd5; padding:10px; display:none; z-index:10000; }
+    #console { position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.95); border-top:2px solid #00ffd5; padding:10px; display:block; z-index:10000; }
     #consoleInput { width:95%; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:8px; color:#00ffd5; font-size:16px; outline:none; }
     .hint { font-size:12px; color:#999; margin-top:6px; text-align:left; max-width:900px; margin-left:auto; margin-right:auto; }
     .selected-badge { display:inline-block; margin-top:6px; padding:4px 8px; background:#00ffd5; color:#000; border-radius:8px; font-weight:bold; font-size:12px; }
-    /* админ-панель */
     #adminPanel { display:none; margin-top:20px; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:10px; max-height:300px; overflow:auto; text-align:left; font-size:14px; }
     #adminPanel h3 { color:#ffcc00; margin-top:0; }
     #closeAdmin { margin-top:10px; padding:5px 15px; border:2px solid #ffcc00; border-radius:8px; background:#222; color:#ffcc00; cursor:pointer; }
@@ -54,16 +51,6 @@
     <div id="skinList"></div>
   </div>
 
-  <div style="margin-top:20px;">
-    <input type="text" id="playerName" placeholder="Enter your name" style="padding:8px; border-radius:5px;">
-    <button id="saveScoreBtn" class="shop-button">Save Score</button>
-  </div>
-
-  <div style="margin-top:30px;">
-    <h2 id="leaderboardTitle" style="color:#00ffd5;">Leaderboard</h2>
-    <ul id="leaderboard"></ul>
-  </div>
-
   <div id="message"></div>
 
   <div id="console">
@@ -71,7 +58,6 @@
     <div class="hint">Примеры: <b>/pay 123456 500</b> — дать 500 RUINA id; <b>/click 123456 60</b> — назначить clickPower 60 пользователю; <b>/changeID 111111 222222</b> — смена ID.</div>
   </div>
 
-  <!-- админ-панель -->
   <div id="adminPanel">
     <h3>📜 Полная информация о игроках</h3>
     <div id="adminContent"></div>
@@ -93,11 +79,12 @@
   let purchasedSkins = [];
   let playerID = null;
 
+  // поменял Skin 1 и Skin 4 местами
   const skins = [
-    { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.1, autoMult: 1 } },
+    { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
     { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.25, autoMult: 1 } },
     { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.5, autoMult: 1 } },
-    { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
+    { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.1, autoMult: 1 } },
     { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 3 } },
     { name: "Skin 6", price: 676767, img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg", bonus: { clickMult: 3, autoMult: 3 } }
   ];
@@ -211,8 +198,7 @@
   function renderSkinShop() {
     const skinList = document.getElementById("skinList");
     skinList.innerHTML = "";
-    [...skins].sort((a,b)=>a.price-b.price).forEach((s, iSorted) => {
-      const idx = skins.indexOf(s);
+    skins.forEach((s, idx) => {
       const bought = purchasedSkins.includes(idx);
       const d = document.createElement("div");
       d.className = "skin-button";
@@ -247,49 +233,65 @@
     msgTimeout = setTimeout(() => m.innerText = "", t);
   }
 
-  // === админ-панель ===
-  let leaderboardClicks = 0;
-  let clickTimer = null;
+  // Консоль
+  document.getElementById("consoleInput").addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      const cmd = e.target.value.trim();
+      if (!cmd) return;
+      e.target.value = "";
+      handleConsoleCommand(cmd);
+    }
+  });
 
-  function showAdminPanel() {
-    const content = document.getElementById("adminContent");
-    content.innerHTML = "";
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith("ruinaData_")) {
-        const id = key.replace("ruinaData_", "");
-        const data = loadData(id) || {};
-        const balance = getBalance(id);
-        const line = document.createElement("div");
-        line.style.marginBottom = "8px";
-        line.innerText =
-          `ID: ${id} | Balance: ${balance} | baseClick: ${data.baseClick ?? 0} | baseAuto: ${data.baseAuto ?? 0} | ` +
-          `selectedSkin: ${data.selectedSkinIndex ?? "none"} | purchased: ${data.purchasedSkins ? data.purchasedSkins.join(",") : "[]"}`;
-        content.appendChild(line);
+  function handleConsoleCommand(cmd) {
+    const parts = cmd.split(" ");
+    const command = parts[0];
+    if (command === "/pay" && parts.length === 3) {
+      const id = parts[1];
+      const sum = parseInt(parts[2]);
+      if (!isNaN(sum)) {
+        setBalance(id, getBalance(id) + sum);
+        showMsg(`Выдали ${sum} RUINA ID ${id}`);
       }
+    } else if (command === "/click" && parts.length === 3) {
+      const id = parts[1];
+      const power = parseInt(parts[2]);
+      if (!isNaN(power)) {
+        const data = loadData(id) || {};
+        data.baseClick = power;
+        saveData(id, data);
+        if (id === playerID) {
+          baseClick = power;
+          updateUI();
+        }
+        showMsg(`ClickPower ID ${id} = ${power}`);
+      }
+    } else if (command === "/changeID" && parts.length === 3) {
+      const oldID = parts[1];
+      const newID = parts[2];
+      const data = loadData(oldID);
+      const balance = getBalance(oldID);
+      if (data !== null) {
+        saveData(newID, data);
+        setBalance(newID, balance);
+        localStorage.removeItem("ruinaData_" + oldID);
+        localStorage.removeItem("ruina_" + oldID);
+        showMsg(`ID ${oldID} заменён на ${newID}`);
+        if (playerID === oldID) {
+          playerID = newID;
+          localStorage.setItem("playerID", newID);
+          document.getElementById("playerId").innerText = "ID: " + playerID;
+        }
+      }
+    } else if (command === "/balance" && parts.length === 2) {
+      const id = parts[1];
+      showMsg(`Баланс ID ${id}: ${getBalance(id)} RUINA`);
+    } else if (command === "/close") {
+      document.getElementById("console").style.display = "none";
+    } else {
+      showMsg("Неизвестная команда");
     }
-    document.getElementById("adminPanel").style.display = "block";
   }
-
-  document.getElementById("leaderboardTitle").addEventListener("click", () => {
-    leaderboardClicks++;
-    if (!clickTimer) {
-      clickTimer = setTimeout(() => {
-        leaderboardClicks = 0;
-        clickTimer = null;
-      }, 600);
-    }
-    if (leaderboardClicks === 3) {
-      leaderboardClicks = 0;
-      clearTimeout(clickTimer);
-      clickTimer = null;
-      showAdminPanel();
-    }
-  });
-
-  document.getElementById("closeAdmin").addEventListener("click", () => {
-    document.getElementById("adminPanel").style.display = "none";
-  });
 
   document.addEventListener("DOMContentLoaded", () => {
     loadPlayer();
@@ -299,9 +301,6 @@
     setInterval(savePlayer, 5000);
     window.addEventListener("beforeunload", savePlayer);
   });
-
 </script>
 </body>
 </html>
-
-
