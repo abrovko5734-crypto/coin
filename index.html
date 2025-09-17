@@ -299,6 +299,56 @@
     setInterval(savePlayer, 5000);
     window.addEventListener("beforeunload", savePlayer);
   });
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  // 🔑 твои ключи отсюда (из скрина)
+  const firebaseConfig = {
+    apiKey: "AIzaSyCjEU8JkB1r2rCQUmBu_5rBHMFWJNfNfMw",
+    authDomain: "server-coin-6b48a.firebaseapp.com",
+    databaseURL: "https://server-coin-6b48a-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "server-coin-6b48a",
+    storageBucket: "server-coin-6b48a.appspot.com",
+    messagingSenderId: "117185494745",
+    appId: "1:117185494745:web:8c6eb5fd30a10922860ec0",
+    measurementId: "G-TGZW563TDD"
+  };
+
+  // запускаем Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // сохранить результат игрока
+  async function saveScoreFirebase(playerId, name, balance) {
+    await set(ref(db, "players/" + playerId), {
+      name: name,
+      balance: balance,
+      updatedAt: Date.now()
+    });
+  }
+
+  // загрузить и показать лидерборд
+  function loadLeaderboardFirebase() {
+    const leaderboardRef = ref(db, "players/");
+    onValue(leaderboardRef, (snapshot) => {
+      const data = snapshot.val();
+      const lb = document.getElementById("leaderboard");
+      lb.innerHTML = "";
+
+      if (!data) return;
+
+      const players = Object.entries(data).map(([id, val]) => ({
+        id,
+        ...val
+      }));
+
+      players.sort((a, b) => b.balance - a.balance);
+
+      players.forEach((p, i) => {
+        const li = document.createElemen
+
 </script>
 </body>
 </html>
+
