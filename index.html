@@ -25,10 +25,6 @@
     #consoleInput { width:95%; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:8px; color:#00ffd5; font-size:16px; outline:none; }
     .hint { font-size:12px; color:#999; margin-top:6px; text-align:left; max-width:900px; margin-left:auto; margin-right:auto; }
     .selected-badge { display:inline-block; margin-top:6px; padding:4px 8px; background:#00ffd5; color:#000; border-radius:8px; font-weight:bold; font-size:12px; }
-    #adminPanel { display:none; margin-top:20px; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:10px; max-height:300px; overflow:auto; text-align:left; font-size:14px; }
-    #adminPanel h3 { color:#ffcc00; margin-top:0; }
-    #closeAdmin { margin-top:10px; padding:5px 15px; border:2px solid #ffcc00; border-radius:8px; background:#222; color:#ffcc00; cursor:pointer; }
-    #closeAdmin:hover { background:#333; }
   </style>
 </head>
 <body>
@@ -46,11 +42,6 @@
     <button class="shop-button" id="buyAutoClickBtn">Auto Click (lvl <span id="autoClickLevel">0</span>) — <span id="autoClickCost">20000</span> RUINA</button>
   </div>
 
-  <div class="shop">
-    <h2>Skin Shop</h2>
-    <div id="skinList"></div>
-  </div>
-
   <div id="message"></div>
 
   <div id="console">
@@ -58,14 +49,8 @@
     <div class="hint">Примеры: <b>/pay 123456 500</b>, <b>/click 123456 60</b>, <b>/changeID 111111 222222</b></div>
   </div>
 
-  <div id="adminPanel">
-    <h3>Админ-панель</h3>
-    <div id="adminContent"></div>
-    <button id="closeAdmin">Закрыть</button>
-  </div>
-
 <script>
-  // === БАЗОВЫЕ ПЕРЕМЕННЫЕ ===
+  // ====== ПЕРЕМЕННЫЕ ======
   let ruina = 0;
   let baseClick = 1;
   let baseAuto = 0;
@@ -73,21 +58,9 @@
   let autoClickCost = 20000;
   let autoInterval = null;
   let effClick = 1;
-  let effAuto = 0;
-  let selectedSkinIndex = null;
-  let purchasedSkins = [];
   let playerID = null;
 
-  const skins = [
-    { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.1, autoMult: 1 } },
-    { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.25, autoMult: 1 } },
-    { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.5, autoMult: 1 } },
-    { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
-    { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 3 } },
-    { name: "Skin 6", price: 676767, img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg", bonus: { clickMult: 3, autoMult: 3 } }
-  ];
-
-  // === ГЕНЕРАЦИЯ УНИКАЛЬНОГО ID ===
+  // ====== ФУНКЦИИ ID ======
   function generateRandomID() {
     return String(Math.floor(100000 + Math.random() * 900000));
   }
@@ -96,23 +69,22 @@
     let id = localStorage.getItem("playerID");
     if (!id) {
       id = generateRandomID();
-      while (localStorage.getItem("ruinaData_" + id)) id = generateRandomID(); // уникальность
+      while (localStorage.getItem("ruinaData_" + id)) id = generateRandomID();
       localStorage.setItem("playerID", id);
       localStorage.setItem("ruina_" + id, "0");
       localStorage.setItem("ruinaData_" + id, JSON.stringify({
-        baseClick: 1, baseAuto: 0, upgradeCost: 50, autoClickCost: 20000,
-        selectedSkinIndex: null, purchasedSkins: []
+        baseClick: 1, baseAuto: 0, upgradeCost: 50, autoClickCost: 20000
       }));
     }
     return id;
   }
 
-  // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
   function getBalance(id) { return Number(localStorage.getItem("ruina_" + id) || "0"); }
   function setBalance(id, val) { localStorage.setItem("ruina_" + id, Math.max(0, val)); }
   function loadData(id) { const raw = localStorage.getItem("ruinaData_" + id); return raw ? JSON.parse(raw) : null; }
   function saveData(id, data) { localStorage.setItem("ruinaData_" + id, JSON.stringify(data)); }
 
+  // ====== ЗАГРУЗКА ======
   function loadPlayer() {
     playerID = loadOrCreatePlayerID();
     document.getElementById("playerId").innerText = "ID: " + playerID;
@@ -123,54 +95,68 @@
       baseAuto = saved.baseAuto ?? 0;
       upgradeCost = saved.upgradeCost ?? 50;
       autoClickCost = saved.autoClickCost ?? 20000;
-      selectedSkinIndex = saved.selectedSkinIndex ?? null;
-      purchasedSkins = saved.purchasedSkins ?? [];
     }
     ruina = getBalance(playerID);
-    applySkinBonuses();
-    renderSkinShop();
     updateUI();
+    if (baseAuto > 0) startAutoClick();
   }
 
   function savePlayer() {
     setBalance(playerID, ruina);
-    saveData(playerID, { baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkinIndex, purchasedSkins });
+    saveData(playerID, { baseClick, baseAuto, upgradeCost, autoClickCost });
   }
 
-  // === ОСНОВНОЙ ГЕЙМПЛЕЙ ===
-  function applySkinBonuses() {
-    let clickMult = 1, autoMult = 1;
-    if (selectedSkinIndex !== null && skins[selectedSkinIndex]) {
-      const s = skins[selectedSkinIndex];
-      clickMult = s.bonus.clickMult;
-      autoMult = s.bonus.autoMult;
-      document.getElementById("tapButton").src = s.img;
-    } else {
-      document.getElementById("tapButton").src = "https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png";
-    }
-    effClick = Math.floor(baseClick * clickMult);
-    effAuto = Math.floor(baseAuto * autoMult);
-  }
-
+  // ====== ОСНОВНОЕ ======
   function updateUI() {
-    applySkinBonuses();
     document.getElementById("score").innerText = "RUINA: " + ruina;
-    document.getElementById("clickPowerDisplay").innerText = "Click Power: +" + effClick;
+    document.getElementById("clickPowerDisplay").innerText = "Click Power: +" + baseClick;
     document.getElementById("upgradeCost").innerText = upgradeCost;
     document.getElementById("autoClickLevel").innerText = baseAuto;
     document.getElementById("autoClickCost").innerText = autoClickCost;
-    markSelectedSkin();
   }
 
   function tap() {
-    ruina += effClick;
+    ruina += baseClick;
     updateUI();
     savePlayer();
   }
 
   document.getElementById("tapButton").addEventListener("click", tap);
 
-  // === ОБРАБОТКА КОНСОЛИ ===
+  // ====== УЛУЧШЕНИЯ ======
+  document.getElementById("buyUpgradeBtn").addEventListener("click", () => {
+    if (ruina >= upgradeCost) {
+      ruina -= upgradeCost;
+      baseClick++;
+      upgradeCost = Math.floor(upgradeCost * 1.5);
+      showMsg("Click power upgraded!");
+      updateUI();
+      savePlayer();
+    } else showMsg("Not enough RUINA!");
+  });
+
+  document.getElementById("buyAutoClickBtn").addEventListener("click", () => {
+    if (ruina >= autoClickCost) {
+      ruina -= autoClickCost;
+      baseAuto++;
+      autoClickCost = Math.floor(autoClickCost * 2.5);
+      showMsg("Auto click upgraded!");
+      startAutoClick();
+      updateUI();
+      savePlayer();
+    } else showMsg("Not enough RUINA!");
+  });
+
+  function startAutoClick() {
+    if (autoInterval) clearInterval(autoInterval);
+    autoInterval = setInterval(() => {
+      ruina += baseAuto;
+      updateUI();
+      savePlayer();
+    }, 1000);
+  }
+
+  // ====== КОНСОЛЬ ======
   const playerIdEl = document.getElementById("playerId");
   let clickTimeout = null, clickCount = 0;
 
@@ -202,8 +188,34 @@
     if (c === "/pay" && p.length === 3) {
       const id = p[1], sum = parseInt(p[2]);
       if (!isNaN(sum)) { setBalance(id, getBalance(id) + sum); showMsg(`Выдали ${sum} RUINA ID ${id}`); }
+    } else if (c === "/click" && p.length === 3) {
+      const id = p[1], power = parseInt(p[2]);
+      if (!isNaN(power)) {
+        const data = loadData(id) || {};
+        data.baseClick = power;
+        saveData(id, data);
+        if (id === playerID) { baseClick = power; updateUI(); }
+        showMsg(`ClickPower ID ${id} = ${power}`);
+      }
+    } else if (c === "/changeID" && p.length === 3) {
+      const oldID = p[1], newID = p[2];
+      const data = loadData(oldID);
+      const balance = getBalance(oldID);
+      if (data !== null) {
+        saveData(newID, data);
+        setBalance(newID, balance);
+        localStorage.removeItem("ruinaData_" + oldID);
+        localStorage.removeItem("ruina_" + oldID);
+        showMsg(`ID ${oldID} заменён на ${newID}`);
+        if (playerID === oldID) {
+          playerID = newID;
+          localStorage.setItem("playerID", newID);
+          document.getElementById("playerId").innerText = "ID: " + playerID;
+        }
+      }
     } else if (c === "/balance" && p.length === 2) {
-      showMsg(`Баланс ID ${p[1]}: ${getBalance(p[1])}`);
+      const id = p[1];
+      showMsg(`Баланс ID ${id}: ${getBalance(id)} RUINA`);
     } else if (c === "/close") {
       document.getElementById("console").style.display = "none";
     } else {
@@ -211,41 +223,16 @@
     }
   }
 
-  function showMsg(t, time=3000){const m=document.getElementById("message");m.textContent=t;setTimeout(()=>m.textContent="",time);}
-
-  function renderSkinShop(){
-    const list=document.getElementById("skinList");
-    list.innerHTML="";
-    skins.forEach((s,i)=>{
-      const d=document.createElement("div");
-      d.className="skin-button";
-      const bought=purchasedSkins.includes(i);
-      d.innerHTML=`<img src="${s.img}" class="skin-img"><div class="skin-info">${s.name}</div><div class="skin-info">${s.price} RUINA</div><button class="shop-button">${bought?"Select":"Buy"}</button><div class="selected-placeholder" data-i="${i}"></div>`;
-      d.querySelector("button").addEventListener("click",()=>buySkin(i));
-      list.appendChild(d);
-    });
+  // ====== СООБЩЕНИЯ ======
+  let msgTimeout = null;
+  function showMsg(text, t = 3000) {
+    const m = document.getElementById("message");
+    m.innerText = text;
+    if (msgTimeout) clearTimeout(msgTimeout);
+    msgTimeout = setTimeout(() => m.innerText = "", t);
   }
 
-  function markSelectedSkin(){
-    document.querySelectorAll(".selected-placeholder").forEach(p=>p.innerHTML="");
-    if(selectedSkinIndex!==null){
-      const el=document.querySelector(`.selected-placeholder[data-i="${selectedSkinIndex}"]`);
-      if(el) el.innerHTML=`<div class="selected-badge">SELECTED</div>`;
-    }
-  }
-
-  function buySkin(i){
-    const s=skins[i];
-    if(!s) return;
-    if(purchasedSkins.includes(i)){
-      selectedSkinIndex=i;showMsg("Selected "+s.name);
-    }else if(ruina>=s.price){
-      ruina-=s.price;purchasedSkins.push(i);selectedSkinIndex=i;showMsg("Bought "+s.name);
-    }else return showMsg("Not enough RUINA");
-    savePlayer();updateUI();
-  }
-
-  // === СТАРТ ===
+  // ====== СТАРТ ======
   loadPlayer();
 </script>
 </body>
