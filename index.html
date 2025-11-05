@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>RUINACOIN TAP</title>
+  <title>RUINACOIN</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body { background:#0f0f0f; color:#fff; font-family:Arial, sans-serif; text-align:center; padding:20px; margin:0; }
@@ -58,12 +58,6 @@
     <div class="hint">Примеры: <b>/pay 123456 500</b>, <b>/click 123456 60</b>, <b>/changeID 111111 222222</b></div>
   </div>
 
-  <div id="adminPanel">
-    <h3>📜 Полная информация о игроках</h3>
-    <div id="adminContent"></div>
-    <button id="closeAdmin">Закрыть</button>
-  </div>
- 
 <script>
   let ruina = 0;
   let baseClick = 1;
@@ -80,10 +74,10 @@
   let playerID = null;
 
   const skins = [
-    { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
+    { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.1, autoMult: 1 } },
     { name: "Skin 2", price: 25000, img: "https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.25, autoMult: 1 } },
     { name: "Skin 3", price: 50000, img: "https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.5, autoMult: 1 } },
-    { name: "Skin 1", price: 10000, img: "https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1.1, autoMult: 1 } },
+    { name: "Skin 4", price: 120000, img: "https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 2 } },
     { name: "Skin 5", price: 350000, img: "https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg", bonus: { clickMult: 1, autoMult: 3 } },
     { name: "Skin 6", price: 676767, img: "https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg", bonus: { clickMult: 3, autoMult: 3 } }
   ];
@@ -335,3 +329,4 @@
     const content = document.getElementById("adminContent");
     content.innerHTML = "";
     for (let i = 0; i < localStorage.length; i++) {
+
