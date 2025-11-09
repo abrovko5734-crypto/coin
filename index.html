@@ -23,10 +23,7 @@ h1 { font-size:32px; color:#ff00aa; margin-bottom:10px; text-shadow:0 0 10px #ff
 .skin-img { max-width:100%; border-radius:10px; display:block; margin:0 auto 6px; box-shadow:0 0 10px #00ffd5; }
 .skin-info { color:#00ffd5; font-size:14px; font-weight:bold; }
 .selected-badge { display:inline-block; margin-top:6px; padding:4px 8px; background:#00ffd5; color:#000; border-radius:8px; font-weight:bold; font-size:12px; }
-#console { position:fixed; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.95); border-top:2px solid #00ffd5; padding:10px; display:none; z-index:10000; }
-#consoleInput { width:95%; padding:10px; background:#111; border:2px solid #00ffd5; border-radius:8px; color:#00ffd5; font-size:16px; outline:none; }
 #topStatsContainer { margin-top:40px; text-align:left; max-width:400px; margin-left:auto; margin-right:auto; }
-.hint { font-size:12px; color:#999; margin-top:6px; text-align:left; max-width:900px; margin-left:auto; margin-right:auto; }
 </style>
 </head>
 <body>
@@ -52,23 +49,9 @@ h1 { font-size:32px; color:#ff00aa; margin-bottom:10px; text-shadow:0 0 10px #ff
 </div>
 
 <div id="message"></div>
-
 <div id="topStatsContainer"></div>
 
-<div id="console">
-<input type="text" id="consoleInput" placeholder="Команды: /pay id сумма, /click id сила, /changeID old new, /balance id, /close">
-<div class="hint">Примеры: <b>/pay 123456 500</b>, <b>/click 123456 60</b>, <b>/changeID 111111 222222</b></div>
-</div>
-
-<!-- Telegram login -->
-<script async src="https://telegram.org/js/telegram-widget.js?7"
-    data-telegram-login="@Ruinacoin_bot"
-    data-size="large"
-    data-request-access="write"
-    data-on-auth="onTelegramAuth(user)">
-</script>
-
-<!-- Firebase SDK -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
 
@@ -86,11 +69,13 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// ====== ДАННЫЕ ======
-let ruina=0, baseClick=1, baseAuto=0, upgradeCost=50, autoClickCost=20000;
-let selectedSkin=null, autoInterval=null, playerID=null, purchasedSkins=[];
+// ====== GLOBAL DATA ======
+let ruina = 0, baseClick = 1, baseAuto = 0;
+let upgradeCost = 50, autoClickCost = 20000;
+let selectedSkin = 1, autoInterval = null, playerID = null;
+let purchasedSkins = [];
 
-// ====== СКИНЫ ======
+// ====== SKINS ======
 const skins = [
 {id:1,name:"Default",img:"https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png",cost:0},
 {id:2,name:"Skin 1",cost:10000,img:"https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.1,autoMult:1}},
@@ -101,39 +86,51 @@ const skins = [
 {id:7,name:"Skin 6",cost:700000,img:"https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg",bonus:{clickMult:3,autoMult:3}}
 ];
 
-// ====== PLAYER ======
+// ====== PLAYER LOAD/SAVE ======
 function generateID(){ return String(Math.floor(100000+Math.random()*900000)); }
+
 function loadOrCreatePlayerID(){
     let id = localStorage.getItem("playerID");
-    if(!id){ id=generateID(); localStorage.setItem("playerID",id); }
+    if(!id){ id = generateID(); localStorage.setItem("playerID", id); }
     return id;
 }
-function getBalance(id){ return Number(localStorage.getItem("ruina_"+id)||"0"); }
+
+function getBalance(id){ return Number(localStorage.getItem("ruina_"+id) || "0"); }
 function setBalance(id,val){ localStorage.setItem("ruina_"+id, Math.max(0,val)); }
 
 function loadPlayer(){
-    if(!playerID) playerID=loadOrCreatePlayerID();
-    document.getElementById("playerId").innerText = "ID: "+playerID;
-    const saved=JSON.parse(localStorage.getItem("ruinaData_"+playerID)||"{}");
+    playerID = loadOrCreatePlayerID();
+    document.getElementById("playerId").innerText = "ID: " + playerID;
+
+    const saved = JSON.parse(localStorage.getItem("ruinaData_"+playerID) || "{}");
+
     baseClick = saved.baseClick ?? 1;
     baseAuto = saved.baseAuto ?? 0;
     upgradeCost = saved.upgradeCost ?? 50;
     autoClickCost = saved.autoClickCost ?? 20000;
     selectedSkin = saved.selectedSkin ?? 1;
     purchasedSkins = saved.purchasedSkins ?? [1];
+
     ruina = getBalance(playerID);
-    updateUI(); updateSkins();
-    if(baseAuto>0) startAutoClick();
+
+    updateUI();
+    updateSkins();
+
+    if(baseAuto > 0) startAutoClick();
 }
 
 function savePlayer(){
     setBalance(playerID, ruina);
-    localStorage.setItem("ruinaData_"+playerID, JSON.stringify({baseClick,baseAuto,upgradeCost,autoClickCost,selectedSkin,purchasedSkins}));
-    // Сохраняем глобально в Firebase
-    db.ref("players/"+playerID).set({ruina,baseClick,baseAuto,selectedSkin});
+    localStorage.setItem("ruinaData_"+playerID, JSON.stringify({
+        baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins
+    }));
+
+    db.ref("players/"+playerID).set({
+        ruina, baseClick, baseAuto, selectedSkin
+    });
 }
 
-// ====== GAME ======
+// ====== UI ======
 function updateUI(){
     document.getElementById("score").innerText = "RUINA: "+ruina;
     document.getElementById("clickPowerDisplay").innerText = "Click Power: +"+baseClick;
@@ -142,92 +139,127 @@ function updateUI(){
     document.getElementById("autoClickCost").innerText = autoClickCost;
 }
 
+// ====== CLICK ======
 function tap(){
-    let clickMult=1;
-    const skin = skins.find(s=>s.id===selectedSkin);
-    if(skin?.bonus?.clickMult) clickMult=skin.bonus.clickMult;
-    ruina += baseClick*clickMult;
+    let clickMult = 1;
+    const skin = skins.find(s => s.id === selectedSkin);
+    if(skin?.bonus?.clickMult) clickMult = skin.bonus.clickMult;
+
+    ruina += baseClick * clickMult;
+
     updateUI();
     savePlayer();
 }
+
 document.getElementById("tapButton").addEventListener("click", tap);
 
 // ====== UPGRADES ======
-document.getElementById("buyUpgradeBtn").addEventListener("click",()=>{
-    if(ruina>=upgradeCost){ ruina-=upgradeCost; baseClick++; upgradeCost=Math.floor(upgradeCost*1.5); showMsg("Click power upgraded!"); updateUI(); savePlayer(); }
-    else showMsg("Not enough RUINA!");
+document.getElementById("buyUpgradeBtn").addEventListener("click", ()=>{
+    if(ruina >= upgradeCost){
+        ruina -= upgradeCost;
+        baseClick++;
+        upgradeCost = Math.floor(upgradeCost * 1.5);
+        showMsg("Click power upgraded!");
+        updateUI(); savePlayer();
+    } else showMsg("Not enough RUINA!");
 });
-document.getElementById("buyAutoClickBtn").addEventListener("click",()=>{
-    if(ruina>=autoClickCost){ ruina-=autoClickCost; baseAuto++; autoClickCost=Math.floor(autoClickCost*2.5); showMsg("Auto click upgraded!"); startAutoClick(); updateUI(); savePlayer(); }
-    else showMsg("Not enough RUINA!");
+
+document.getElementById("buyAutoClickBtn").addEventListener("click", ()=>{
+    if(ruina >= autoClickCost){
+        ruina -= autoClickCost;
+        baseAuto++;
+        autoClickCost = Math.floor(autoClickCost * 2.5);
+        showMsg("Auto click upgraded!");
+        startAutoClick();
+        updateUI(); savePlayer();
+    } else showMsg("Not enough RUINA!");
 });
+
 function startAutoClick(){
     if(autoInterval) clearInterval(autoInterval);
-    autoInterval=setInterval(()=>{
-        let autoMult=1;
-        const skin=skins.find(s=>s.id===selectedSkin);
-        if(skin?.bonus?.autoMult) autoMult=skin.bonus.autoMult;
-        ruina+=baseAuto*autoMult;
+    autoInterval = setInterval(()=>{
+        let autoMult = 1;
+        const skin = skins.find(s => s.id === selectedSkin);
+        if(skin?.bonus?.autoMult) autoMult = skin.bonus.autoMult;
+
+        ruina += baseAuto * autoMult;
         updateUI(); savePlayer();
-    },1000);
+    }, 1000);
 }
 
 // ====== SKINS ======
 function updateSkins(){
-    const container=document.getElementById("skins"); container.innerHTML="";
+    const container = document.getElementById("skins");
+    container.innerHTML = "";
+
     skins.forEach(s=>{
-        const btn=document.createElement("div");
-        btn.className="skin-button";
-        const owned=purchasedSkins.includes(s.id);
-        const price=owned?s.cost=0:s.cost||0;
-        btn.innerHTML=`
-        <img src="${s.img}" class="skin-img" style="${selectedSkin===s.id?'border:2px solid #ff00aa;box-shadow:0 0 20px #ff00aa;':''}">
-        <div class="skin-info">${s.name}<br>${owned?0:s.cost||0} RUINA</div>
-        ${s.bonus?`<div style="font-size:12px;color:#ff00aa;">Click x${s.bonus.clickMult}, Auto x${s.bonus.autoMult}</div>`:''}
-        ${selectedSkin===s.id?'<div class="selected-badge">SELECTED</div>':''}`;
-        btn.onclick=()=>{
-            if(selectedSkin===s.id){ showMsg("Already selected!"); }
-            else if(owned||ruina>=s.cost){
-                if(!owned) { ruina-=s.cost; purchasedSkins.push(s.id); }
-                selectedSkin=s.id;
-                document.getElementById("tapButton").src=s.img;
-                updateUI(); updateSkins(); savePlayer();
-                showMsg(`Skin changed to ${s.name}`);
-            } else showMsg("Not enough RUINA!");
+        const btn = document.createElement("div");
+        btn.className = "skin-button";
+
+        const owned = purchasedSkins.includes(s.id);
+        const price = owned ? 0 : (s.cost || 0);
+
+        btn.innerHTML = `
+        <img src="${s.img}" class="skin-img"
+             style="${selectedSkin===s.id ? 'border:2px solid #ff00aa;box-shadow:0 0 20px #ff00aa;' : ''}">
+        <div class="skin-info">${s.name}<br>${price} RUINA</div>
+        ${s.bonus ? `<div style="font-size:12px;color:#ff00aa;">Click x${s.bonus.clickMult}, Auto x${s.bonus.autoMult}</div>` : ''}
+        ${selectedSkin===s.id ? '<div class="selected-badge">SELECTED</div>' : ''}
+        `;
+
+        btn.onclick = ()=>{
+            if(selectedSkin === s.id){
+                showMsg("Already selected!");
+                return;
+            }
+
+            if(!owned){
+                if(ruina < s.cost){ showMsg("Not enough RUINA!"); return; }
+                ruina -= s.cost;
+                purchasedSkins.push(s.id);
+            }
+
+            selectedSkin = s.id;
+            document.getElementById("tapButton").src = s.img;
+            updateUI(); updateSkins(); savePlayer();
+            showMsg(`Skin changed to ${s.name}`);
         };
+
         container.appendChild(btn);
     });
 }
 
-// ====== MESSAGES ======
-let msgTimeout=null;
-function showMsg(text,t=3000){ const m=document.getElementById("message"); m.innerText=text; if(msgTimeout) clearTimeout(msgTimeout); msgTimeout=setTimeout(()=>m.innerText="",t); }
+// ====== MESSAGE ======
+let msgTimeout = null;
+function showMsg(text,t=3000){
+    const m=document.getElementById("message");
+    m.innerText=text;
+    if(msgTimeout) clearTimeout(msgTimeout);
+    msgTimeout=setTimeout(()=>m.innerText="",t);
+}
 
 // ====== TOP STATS ======
-document.getElementById("topStatsBtn").addEventListener("click",()=>{
+document.getElementById("topStatsBtn").addEventListener("click", ()=>{
     db.ref("players").once("value").then(snapshot=>{
-        const data=snapshot.val();
+        const data = snapshot.val();
         if(!data){ showMsg("Нет данных для топа."); return; }
-        const players=Object.entries(data).map(([id,p])=>({id,ruina:p.ruina}));
+
+        const players = Object.entries(data).map(([id,p])=>({id,ruina:p.ruina}));
         players.sort((a,b)=>b.ruina-a.ruina);
-        const container=document.getElementById("topStatsContainer");
-        container.innerHTML="<h2>Топ RUINA:</h2>";
-        players.slice(0,10).forEach((p,i)=>{ container.innerHTML+=`${i+1}. ID ${p.id}: ${p.ruina}<br>`; });
-        // Прокрутка к топу
+
+        const container = document.getElementById("topStatsContainer");
+        container.innerHTML = "<h2>Топ RUINA:</h2>";
+
+        players.slice(0,10).forEach((p,i)=>{
+            container.innerHTML += `${i+1}. ID ${p.id}: ${p.ruina}<br>`;
+        });
+
         container.scrollIntoView({behavior:"smooth"});
     });
 });
 
-// ====== TELEGRAM LOGIN ======
-function onTelegramAuth(user){
-    playerID = "tg_"+user.id;
-    document.getElementById("playerId").innerText = `ID: ${playerID} (${user.first_name})`;
-    loadPlayer();
-}
-
-// ====== START ======
+// AUTO START
 loadPlayer();
 </script>
-
 </body>
 </html>
