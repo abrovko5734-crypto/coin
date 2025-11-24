@@ -51,81 +51,46 @@ h1 { font-size:32px; color:#ff00aa; margin-bottom:10px; text-shadow:0 0 10px #ff
 <div id="message"></div>
 <div id="topStatsContainer"></div>
 
-<!-- Firebase (optional) -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
 
 <script>
-// ====== FIREBASE (OPTIONAL) ======
-// Если конфиг оставлен со значениями "ВАШ_*", библиотека не будет использоваться,
-// и все операции будут выполняться локально (localStorage).
+// ==================== FIREBASE ИНИЦИАЛИЗАЦИЯ ====================
 const firebaseConfig = {
-    apiKey: "ВАШ_API_KEY",
-    authDomain: "ВАШ_ДОМЕН.firebaseapp.com",
-    databaseURL: "https://ВАШ_ДОМЕН.firebaseio.com",
-    projectId: "ВАШ_ДОМЕН",
-    storageBucket: "ВАШ_ДОМЕН.appspot.com",
-    messagingSenderId: "ВАШ_ID",
-    appId: "ВАШ_APPID"
+  apiKey: "AIzaSyCTPqupywSBU4S5inETk8p-tQFMe3Dx4tE",
+  authDomain: "coin-2e819.firebaseapp.com",
+  databaseURL: "https://coin-2e819-default-rtdb.firebaseio.com",
+  projectId: "coin-2e819",
+  storageBucket: "coin-2e819.firebasestorage.app",
+  messagingSenderId: "701106957724",
+  appId: "1:701106957724:web:dfba4d3ce63521afb1ec59"
 };
 
-let firebaseEnabled = true;
-try {
-    // Простая проверка — если в конфиге есть заглушки, отключаем Firebase
-    if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("ВАШ_")) {
-        firebaseEnabled = false;
-        console.warn("Firebase config содержит заглушки. Работаю в локальном режиме (localStorage).");
-    } else {
-        firebase.initializeApp(firebaseConfig);
-    }
-} catch (e) {
-    firebaseEnabled = false;
-    console.warn("Firebase не инициализирован, работаем локально:", e);
-}
+firebase.initializeApp(firebaseConfig);
 
-// API-адаптер — если Firebase доступен, используем его, иначе — localStorage "players_db"
+// Всегда работаем через Firebase
 const dbAdapter = {
     async setPlayer(id, payload) {
-        if (firebaseEnabled) {
-            try {
-                await firebase.database().ref("players/" + id).set(payload);
-                return true;
-            } catch (e) {
-                console.warn("Ошибка записи в Firebase, переключаемся на локальное хранилище:", e);
-                firebaseEnabled = false;
-            }
-        }
-        // local fallback
-        const all = JSON.parse(localStorage.getItem("players_db") || "{}");
-        all[id] = payload;
-        localStorage.setItem("players_db", JSON.stringify(all));
-        return true;
+        return firebase.database().ref("players/" + id).set(payload);
     },
     async getAllPlayers() {
-        if (firebaseEnabled) {
-            try {
-                const snapshot = await firebase.database().ref("players").once("value");
-                return snapshot.val() || {};
-            } catch (e) {
-                console.warn("Ошибка чтения из Firebase, переключаемся на локальное хранилище:", e);
-                firebaseEnabled = false;
-            }
-        }
-        return JSON.parse(localStorage.getItem("players_db") || "{}");
+        const snapshot = await firebase.database().ref("players").once("value");
+        return snapshot.val() || {};
     },
     async getPlayer(id) {
-        const all = await this.getAllPlayers();
-        return all[id] || null;
+        const snapshot = await firebase.database().ref("players/" + id).once("value");
+        return snapshot.val() || null;
     }
 };
 
-// ====== GLOBAL DATA ======
+// ==================== ИГРОВЫЕ ДАННЫЕ ====================
 let ruina = 0, baseClick = 1, baseAuto = 0;
 let upgradeCost = 50, autoClickCost = 20000;
 let selectedSkin = 1, autoInterval = null, playerID = null;
 let purchasedSkins = [];
 
-// ====== SKINS ======
+// ==================== СКИНЫ ====================
 const skins = [
 {id:1,name:"Default",img:"https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png",cost:0},
 {id:2,name:"Skin 1",cost:10000,img:"https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.1,autoMult:1}},
@@ -136,7 +101,7 @@ const skins = [
 {id:7,name:"Skin 6",cost:700000,img:"https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg",bonus:{clickMult:3,autoMult:3}}
 ];
 
-// ====== PLAYER LOAD/SAVE ======
+// ==================== ИНИЦИАЛИЗАЦИЯ ИГРОКА ====================
 function generateID(){ return String(Math.floor(100000+Math.random()*900000)); }
 
 function loadOrCreatePlayerID(){
@@ -144,9 +109,6 @@ function loadOrCreatePlayerID(){
     if(!id){ id = generateID(); localStorage.setItem("playerID", id); }
     return id;
 }
-
-function getBalance(id){ return Number(localStorage.getItem("ruina_"+id) || "0"); }
-function setBalance(id,val){ localStorage.setItem("ruina_"+id, Math.max(0, Math.round(val))); }
 
 function loadPlayer(){
     playerID = loadOrCreatePlayerID();
@@ -160,14 +122,10 @@ function loadPlayer(){
     autoClickCost = saved.autoClickCost ?? 20000;
     selectedSkin = saved.selectedSkin ?? 1;
     purchasedSkins = saved.purchasedSkins ?? [1];
+    ruina = saved.ruina ?? 0;
 
-    ruina = getBalance(playerID) || 0;
-
-    // Apply selected skin image immediately
     const skin = skins.find(s => s.id === selectedSkin);
-    if (skin && document.getElementById("tapButton")) {
-        document.getElementById("tapButton").src = skin.img;
-    }
+    document.getElementById("tapButton").src = skin.img;
 
     updateUI();
     updateSkins();
@@ -176,24 +134,17 @@ function loadPlayer(){
 }
 
 async function savePlayer(){
-    setBalance(playerID, ruina);
     localStorage.setItem("ruinaData_"+playerID, JSON.stringify({
-        baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins
+        ruina, baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins
     }));
 
-    // Попытаться записать в удалённую БД (Firebase) или в локальную эмуляцию
-    try {
-        await dbAdapter.setPlayer(playerID, {
-            ruina, baseClick, baseAuto, selectedSkin, updatedAt: Date.now()
-        });
-    } catch (e) {
-        console.warn("Не удалось сохранить данные игрока:", e);
-    }
+    await dbAdapter.setPlayer(playerID, {
+        ruina, baseClick, baseAuto, selectedSkin, updatedAt: Date.now()
+    });
 }
 
-// ====== UI ======
+// ==================== UI ====================
 function updateUI(){
-    // Показываем целые числа (RUINA)
     document.getElementById("score").innerText = "RUINA: " + Math.round(ruina);
     document.getElementById("clickPowerDisplay").innerText = "Click Power: +" + baseClick;
     document.getElementById("upgradeCost").innerText = upgradeCost;
@@ -201,134 +152,114 @@ function updateUI(){
     document.getElementById("autoClickCost").innerText = autoClickCost;
 }
 
-// ====== CLICK ======
+// ==================== КЛИК ====================
 function tap(){
-    let clickMult = 1;
+    let mult = 1;
     const skin = skins.find(s => s.id === selectedSkin);
-    if(skin?.bonus?.clickMult) clickMult = skin.bonus.clickMult;
+    if(skin?.bonus?.clickMult) mult = skin.bonus.clickMult;
 
-    ruina += baseClick * clickMult;
-    ruina = Math.max(0, ruina);
-
+    ruina += baseClick * mult;
     updateUI();
     savePlayer();
 }
 
 document.getElementById("tapButton").addEventListener("click", tap);
 
-// ====== UPGRADES ======
-document.getElementById("buyUpgradeBtn").addEventListener("click", ()=>{
-    if(ruina >= upgradeCost){
-        ruina -= upgradeCost;
-        baseClick++;
-        upgradeCost = Math.floor(upgradeCost * 1.5);
-        showMsg("Click power upgraded!");
-        updateUI(); savePlayer();
-    } else showMsg("Not enough RUINA!");
-});
-
-document.getElementById("buyAutoClickBtn").addEventListener("click", ()=>{
-    if(ruina >= autoClickCost){
-        ruina -= autoClickCost;
-        baseAuto++;
-        autoClickCost = Math.floor(autoClickCost * 2.5);
-        showMsg("Auto click upgraded!");
-        startAutoClick();
-        updateUI(); savePlayer();
-    } else showMsg("Not enough RUINA!");
-});
-
+// ==================== АВТОКЛИК ====================
 function startAutoClick(){
     if(autoInterval) clearInterval(autoInterval);
     autoInterval = setInterval(()=>{
-        let autoMult = 1;
+        let mult = 1;
         const skin = skins.find(s => s.id === selectedSkin);
-        if(skin?.bonus?.autoMult) autoMult = skin.bonus.autoMult;
+        if(skin?.bonus?.autoMult) mult = skin.bonus.autoMult;
 
-        ruina += baseAuto * autoMult;
-        ruina = Math.max(0, ruina);
-        updateUI(); savePlayer();
+        ruina += baseAuto * mult;
+        updateUI();
+        savePlayer();
     }, 1000);
 }
 
-// ====== SKINS ======
+// ==================== ПОКУПКИ ====================
+document.getElementById("buyUpgradeBtn").addEventListener("click", ()=>{
+    if(ruina < upgradeCost) return showMsg("Not enough RUINA!");
+    ruina -= upgradeCost;
+    baseClick++;
+    upgradeCost = Math.floor(upgradeCost * 1.5);
+    showMsg("Click power upgraded!");
+    updateUI(); savePlayer();
+});
+
+document.getElementById("buyAutoClickBtn").addEventListener("click", ()=>{
+    if(ruina < autoClickCost) return showMsg("Not enough RUINA!");
+    ruina -= autoClickCost;
+    baseAuto++;
+    autoClickCost = Math.floor(autoClickCost * 2.5);
+    showMsg("Auto click upgraded!");
+    startAutoClick();
+    updateUI(); savePlayer();
+});
+
+// ==================== СКИНЫ ====================
 function updateSkins(){
     const container = document.getElementById("skins");
     container.innerHTML = "";
 
     skins.forEach(s=>{
+        const owned = purchasedSkins.includes(s.id);
+
         const btn = document.createElement("div");
         btn.className = "skin-button";
-
-        const owned = purchasedSkins.includes(s.id);
-        const price = owned ? 0 : (s.cost || 0);
-
         btn.innerHTML = `
-        <img src="${s.img}" class="skin-img"
-             style="${selectedSkin===s.id ? 'border:2px solid #ff00aa;box-shadow:0 0 20px #ff00aa;' : ''}" alt="${s.name}">
-        <div class="skin-info">${s.name}<br>${price} RUINA</div>
-        ${s.bonus ? `<div style="font-size:12px;color:#ff00aa;">Click x${s.bonus.clickMult}, Auto x${s.bonus.autoMult}</div>` : ''}
-        ${selectedSkin===s.id ? '<div class="selected-badge">SELECTED</div>' : ''}
+            <img src="${s.img}" class="skin-img" style="${selectedSkin===s.id ? 'border:2px solid #ff00aa;box-shadow:0 0 20px #ff00aa;' : ''}">
+            <div class="skin-info">${s.name}<br>${owned ? "OWNED" : s.cost + " RUINA"}</div>
+            ${selectedSkin===s.id ? '<div class="selected-badge">SELECTED</div>' : ''}
         `;
 
         btn.onclick = ()=>{
-            if(selectedSkin === s.id){
-                showMsg("Already selected!");
-                return;
-            }
-
             if(!owned){
-                if(ruina < s.cost){ showMsg("Not enough RUINA!"); return; }
+                if(ruina < s.cost) return showMsg("Not enough RUINA!");
                 ruina -= s.cost;
                 purchasedSkins.push(s.id);
             }
-
             selectedSkin = s.id;
             document.getElementById("tapButton").src = s.img;
             updateUI(); updateSkins(); savePlayer();
-            showMsg(`Skin changed to ${s.name}`);
         };
 
         container.appendChild(btn);
     });
 }
 
-// ====== MESSAGE ======
+// ==================== СООБЩЕНИЯ ====================
 let msgTimeout = null;
-function showMsg(text,t=3000){
+function showMsg(text,t=2000){
     const m=document.getElementById("message");
     m.innerText=text;
     if(msgTimeout) clearTimeout(msgTimeout);
     msgTimeout=setTimeout(()=>m.innerText="",t);
 }
 
-// ====== TOP STATS ======
+// ==================== ТОП ИГРОКОВ ====================
 document.getElementById("topStatsBtn").addEventListener("click", async ()=>{
-    try {
-        const data = await dbAdapter.getAllPlayers();
-        if(!data || Object.keys(data).length === 0){ showMsg("Нет данных для топа."); return; }
+    const data = await dbAdapter.getAllPlayers();
 
-        const players = Object.entries(data).map(([id,p])=>({id, ruina: Number(p?.ruina || 0)}));
-        players.sort((a,b)=>b.ruina - a.ruina);
+    const players = Object.entries(data).map(([id,p])=>({
+        id,
+        ruina: Number(p?.ruina || 0)
+    })).sort((a,b)=>b.ruina - a.ruina);
 
-        const container = document.getElementById("topStatsContainer");
-        container.innerHTML = "<h2>Топ RUINA:</h2>";
+    const container = document.getElementById("topStatsContainer");
+    container.innerHTML = "<h2>Топ RUINA:</h2>";
 
-        players.slice(0,10).forEach((p,i)=>{
-            container.innerHTML += `${i+1}. ID ${p.id}: ${Math.round(p.ruina)}<br>`;
-        });
+    players.slice(0,10).forEach((p,i)=>{
+        container.innerHTML += `${i+1}. ID ${p.id}: ${Math.round(p.ruina)}<br>`;
+    });
 
-        container.scrollIntoView({behavior:"smooth"});
-    } catch (e) {
-        console.warn("Ошибка получения топа:", e);
-        showMsg("Не удалось загрузить топ.");
-    }
+    container.scrollIntoView({behavior:"smooth"});
 });
 
-// Save при выходе (чтобы уменьшить риск потери прогресса)
+// ==================== СТАРТ ====================
 window.addEventListener("beforeunload", ()=>{ try{ savePlayer(); }catch(e){} });
-
-// AUTO START
 loadPlayer();
 </script>
 </body>
