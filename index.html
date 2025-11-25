@@ -40,7 +40,6 @@ h1 { font-size:32px; color:#ff00aa; margin-bottom:10px; text-shadow:0 0 10px #ff
 <h2>Upgrade Shop</h2>
 <button class="shop-button" id="buyUpgradeBtn">Add +1 per click — <span id="upgradeCost">50</span> RUINA</button>
 <button class="shop-button" id="buyAutoClickBtn">Auto Click (lvl <span id="autoClickLevel">0</span>) — <span id="autoClickCost">20000</span> RUINA</button>
-<button class="shop-button" id="topStatsBtn">Показать топ RUINA</button>
 </div>
 
 <div class="shop">
@@ -57,8 +56,6 @@ h1 { font-size:32px; color:#ff00aa; margin-bottom:10px; text-shadow:0 0 10px #ff
 
 <script>
 // ====== FIREBASE (OPTIONAL) ======
-// Если конфиг оставлен со значениями "ВАШ_*", библиотека не будет использоваться,
-// и все операции будут выполняться локально (localStorage).
 const firebaseConfig = {
     apiKey: "ВАШ_API_KEY",
     authDomain: "ВАШ_ДОМЕН.firebaseapp.com",
@@ -71,7 +68,6 @@ const firebaseConfig = {
 
 let firebaseEnabled = true;
 try {
-    // Простая проверка — если в конфиге есть заглушки, отключаем Firebase
     if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes("ВАШ_")) {
         firebaseEnabled = false;
         console.warn("Firebase config содержит заглушки. Работаю в локальном режиме (localStorage).");
@@ -83,7 +79,6 @@ try {
     console.warn("Firebase не инициализирован, работаем локально:", e);
 }
 
-// API-адаптер — если Firebase доступен, используем его, иначе — localStorage "players_db"
 const dbAdapter = {
     async setPlayer(id, payload) {
         if (firebaseEnabled) {
@@ -91,11 +86,9 @@ const dbAdapter = {
                 await firebase.database().ref("players/" + id).set(payload);
                 return true;
             } catch (e) {
-                console.warn("Ошибка записи в Firebase, переключаемся на локальное хранилище:", e);
                 firebaseEnabled = false;
             }
         }
-        // local fallback
         const all = JSON.parse(localStorage.getItem("players_db") || "{}");
         all[id] = payload;
         localStorage.setItem("players_db", JSON.stringify(all));
@@ -106,10 +99,7 @@ const dbAdapter = {
             try {
                 const snapshot = await firebase.database().ref("players").once("value");
                 return snapshot.val() || {};
-            } catch (e) {
-                console.warn("Ошибка чтения из Firebase, переключаемся на локальное хранилище:", e);
-                firebaseEnabled = false;
-            }
+            } catch (e) { firebaseEnabled = false; }
         }
         return JSON.parse(localStorage.getItem("players_db") || "{}");
     },
@@ -125,7 +115,6 @@ let upgradeCost = 50, autoClickCost = 20000;
 let selectedSkin = 1, autoInterval = null, playerID = null;
 let purchasedSkins = [];
 
-// ====== SKINS ======
 const skins = [
 {id:1,name:"Default",img:"https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png",cost:0},
 {id:2,name:"Skin 1",cost:10000,img:"https://i.postimg.cc/Q9pCQYSJ/photo-1.png",bonus:{clickMult:1.1,autoMult:1}},
@@ -136,7 +125,6 @@ const skins = [
 {id:7,name:"Skin 6",cost:700000,img:"https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg",bonus:{clickMult:3,autoMult:3}}
 ];
 
-// ====== PLAYER LOAD/SAVE ======
 function generateID(){ return String(Math.floor(100000+Math.random()*900000)); }
 
 function loadOrCreatePlayerID(){
@@ -163,7 +151,6 @@ function loadPlayer(){
 
     ruina = getBalance(playerID) || 0;
 
-    // Apply selected skin image immediately
     const skin = skins.find(s => s.id === selectedSkin);
     if (skin && document.getElementById("tapButton")) {
         document.getElementById("tapButton").src = skin.img;
@@ -181,19 +168,15 @@ async function savePlayer(){
         baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins
     }));
 
-    // Попытаться записать в удалённую БД (Firebase) или в локальную эмуляцию
     try {
         await dbAdapter.setPlayer(playerID, {
             ruina, baseClick, baseAuto, selectedSkin, updatedAt: Date.now()
         });
-    } catch (e) {
-        console.warn("Не удалось сохранить данные игрока:", e);
-    }
+    } catch (e) {}
 }
 
 // ====== UI ======
 function updateUI(){
-    // Показываем целые числа (RUINA)
     document.getElementById("score").innerText = "RUINA: " + Math.round(ruina);
     document.getElementById("clickPowerDisplay").innerText = "Click Power: +" + baseClick;
     document.getElementById("upgradeCost").innerText = upgradeCost;
@@ -217,7 +200,7 @@ function tap(){
 document.getElementById("tapButton").addEventListener("click", tap);
 
 // ====== UPGRADES ======
-document.getElementById("buyUpgradeBtn").addEventListener("click", ()=>{
+document.getElementById("buyUpgradeBtn").addEventListener("click", ()=> {
     if(ruina >= upgradeCost){
         ruina -= upgradeCost;
         baseClick++;
@@ -227,7 +210,7 @@ document.getElementById("buyUpgradeBtn").addEventListener("click", ()=>{
     } else showMsg("Not enough RUINA!");
 });
 
-document.getElementById("buyAutoClickBtn").addEventListener("click", ()=>{
+document.getElementById("buyAutoClickBtn").addEventListener("click", ()=> {
     if(ruina >= autoClickCost){
         ruina -= autoClickCost;
         baseAuto++;
@@ -302,35 +285,17 @@ function showMsg(text,t=3000){
     msgTimeout=setTimeout(()=>m.innerText="",t);
 }
 
-// ====== TOP STATS ======
-document.getElementById("topStatsBtn").addEventListener("click", async ()=>{
-    try {
-        const data = await dbAdapter.getAllPlayers();
-        if(!data || Object.keys(data).length === 0){ showMsg("Нет данных для топа."); return; }
-
-        const players = Object.entries(data).map(([id,p])=>({id, ruina: Number(p?.ruina || 0)}));
-        players.sort((a,b)=>b.ruina - a.ruina);
-
-        const container = document.getElementById("topStatsContainer");
-        container.innerHTML = "<h2>Топ RUINA:</h2>";
-
-        players.slice(0,10).forEach((p,i)=>{
-            container.innerHTML += `${i+1}. ID ${p.id}: ${Math.round(p.ruina)}<br>`;
-        });
-
-        container.scrollIntoView({behavior:"smooth"});
-    } catch (e) {
-        console.warn("Ошибка получения топа:", e);
-        showMsg("Не удалось загрузить топ.");
-    }
+// ====== DOUBLE CLICK OPEN CONSOLE ======
+document.getElementById("playerId").addEventListener("dblclick", () => {
+    console.log("Консоль открыта!");
+    debugger;
 });
 
-// Save при выходе (чтобы уменьшить риск потери прогресса)
-window.addEventListener("beforeunload", ()=>{ try{ savePlayer(); }catch(e){} });
+// Save при выходе
+window.addEventListener("beforeunload", ()=>{ try{ savePlayer();}catch(e){} });
 
 // AUTO START
 loadPlayer();
 </script>
 </body>
 </html>
-
