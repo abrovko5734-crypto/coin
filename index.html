@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>RUINACOIN</title>
+<title>RUINACOIN TAP</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body { background:#0f0f0f; color:#fff; font-family:Arial, sans-serif; text-align:center; padding:20px; margin:0; }
@@ -56,7 +56,7 @@ h1 { font-size:32px; color:#ff00aa; margin-bottom:10px; text-shadow:0 0 10px #ff
 <script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-database-compat.js"></script>
 
 <script>
-// ==================== FIREBASE ИНИЦИАЛИЗАЦИЯ ====================
+// ==================== FIREBASE ====================
 const firebaseConfig = {
   apiKey: "AIzaSyCTPqupywSBU4S5inETk8p-tQFMe3Dx4tE",
   authDomain: "coin-2e819.firebaseapp.com",
@@ -68,52 +68,41 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 
-// ==================== DATABASE ADAPTER ====================
 const dbAdapter = {
-    async setPlayer(id, payload) {
-        return firebase.database().ref("players/" + id).set(payload);
-    },
-    async getAllPlayers() {
-        const snapshot = await firebase.database().ref("players").once("value");
-        return snapshot.val() || {};
-    },
-    async getPlayer(id) {
-        const snapshot = await firebase.database().ref("players/" + id).once("value");
-        return snapshot.val() || null;
-    }
+    async setPlayer(id, payload) { return firebase.database().ref("players/" + id).set(payload); },
+    async getAllPlayers() { const snapshot = await firebase.database().ref("players").once("value"); return snapshot.val() || {}; },
+    async getPlayer(id) { const snapshot = await firebase.database().ref("players/" + id).once("value"); return snapshot.val() || null; }
 };
 
-// ==================== ИГРОВЫЕ ДАННЫЕ ====================
+// ==================== ДАННЫЕ ====================
 let ruina = 0, baseClick = 1, baseAuto = 0;
 let upgradeCost = 50, autoClickCost = 20000;
 let selectedSkin = 1, autoInterval = null, playerID = null;
 let purchasedSkins = [];
 
-// ==================== СКИНЫ ====================
 const skins = [
-{id:1,name:"Default",img:"https://i.postimg.cc/BnNsnqwB/photo-5321361869136590759-y-removebg-preview.png",cost:0},
-{id:2,name:"Skin 1",cost:10000,img:"https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.1,autoMult:1}},
-{id:3,name:"Skin 2",cost:25000,img:"https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.25,autoMult:1}},
-{id:4,name:"Skin 3",cost:50000,img:"https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.5,autoMult:1}},
-{id:5,name:"Skin 4",cost:120000,img:"https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg",bonus:{clickMult:1,autoMult:2}},
-{id:6,name:"Skin 5",cost:350000,img:"https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg",bonus:{clickMult:1,autoMult:3}},
-{id:7,name:"Skin 6",cost:700000,img:"https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg",bonus:{clickMult:3,autoMult:3}}
+{id:1,name:"Skin 1",cost:10000,img:"https://i.postimg.cc/Q9pCQYSJ/photo-1.png",bonus:{clickMult:1.1,autoMult:1}},
+{id:2,name:"Skin 2",cost:10000,img:"https://i.postimg.cc/d7hZXDtL/photo-1-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.1,autoMult:1}},
+{id:3,name:"Skin 3",cost:25000,img:"https://i.postimg.cc/4HgKm5v9/photo-2-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.25,autoMult:1}},
+{id:4,name:"Skin 4",cost:50000,img:"https://i.postimg.cc/0MmMk3Sv/photo-3-2025-09-16-13-48-10.jpg",bonus:{clickMult:1.5,autoMult:1}},
+{id:5,name:"Skin 5",cost:120000,img:"https://i.postimg.cc/RJLWfHGb/photo-4-2025-09-16-13-48-10.jpg",bonus:{clickMult:1,autoMult:2}},
+{id:6,name:"Skin 6",cost:350000,img:"https://i.postimg.cc/7CjJyDfX/photo-5-2025-09-16-13-48-10.jpg",bonus:{clickMult:1,autoMult:3}},
+{id:7,name:"Skin 7",cost:700000,img:"https://i.postimg.cc/0rYMhTxd/photo-6-2025-09-16-13-48-10.jpg",bonus:{clickMult:3,autoMult:3}}
 ];
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ИГРОКА ====================
+// ==================== ИГРОК ====================
 function generateID(){ return String(Math.floor(100000+Math.random()*900000)); }
-
 function loadOrCreatePlayerID(){
     let id = localStorage.getItem("playerID");
     if(!id){ id = generateID(); localStorage.setItem("playerID", id); }
     return id;
 }
 
+// ==================== ЗАГРУЗКА ====================
 async function loadPlayer(){
     playerID = loadOrCreatePlayerID();
     document.getElementById("playerId").innerText = "ID: " + playerID;
 
-    // Загружаем данные с Firebase
     const saved = await dbAdapter.getPlayer(playerID) || {};
 
     baseClick = saved.baseClick ?? 1;
@@ -125,7 +114,7 @@ async function loadPlayer(){
     ruina = saved.ruina ?? 0;
 
     const skin = skins.find(s => s.id === selectedSkin);
-    document.getElementById("tapButton").src = skin.img;
+    if(skin) document.getElementById("tapButton").src = skin.img;
 
     updateUI();
     updateSkins();
@@ -134,16 +123,10 @@ async function loadPlayer(){
 }
 
 async function savePlayer(){
-    // Локальный кэш
     localStorage.setItem("ruinaData_"+playerID, JSON.stringify({
         ruina, baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins
     }));
-
-    // Сохраняем на Firebase
-    await dbAdapter.setPlayer(playerID, {
-        ruina, baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins,
-        updatedAt: Date.now()
-    });
+    await dbAdapter.setPlayer(playerID, {ruina, baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins, updatedAt: Date.now()});
 }
 
 // ==================== UI ====================
@@ -165,7 +148,6 @@ function tap(){
     updateUI();
     savePlayer();
 }
-
 document.getElementById("tapButton").addEventListener("click", tap);
 
 // ==================== АВТОКЛИК ====================
@@ -245,25 +227,18 @@ function showMsg(text,t=2000){
 // ==================== ТОП ИГРОКОВ ====================
 document.getElementById("topStatsBtn").addEventListener("click", async ()=>{
     const data = await dbAdapter.getAllPlayers();
-
-    const players = Object.entries(data).map(([id,p])=>({
-        id,
-        ruina: Number(p?.ruina || 0)
-    })).sort((a,b)=>b.ruina - a.ruina);
+    const players = Object.entries(data).map(([id,p])=>({id, ruina: Number(p?.ruina || 0)})).sort((a,b)=>b.ruina - a.ruina);
 
     const container = document.getElementById("topStatsContainer");
     container.innerHTML = "<h2>Топ RUINA:</h2>";
-
-    players.slice(0,10).forEach((p,i)=>{
-        container.innerHTML += `${i+1}. ID ${p.id}: ${Math.round(p.ruina)}<br>`;
-    });
-
+    players.slice(0,10).forEach((p,i)=>{ container.innerHTML += `${i+1}. ID ${p.id}: ${Math.round(p.ruina)}<br>`; });
     container.scrollIntoView({behavior:"smooth"});
 });
 
 // ==================== СТАРТ ====================
 window.addEventListener("beforeunload", ()=>{ try{ savePlayer(); }catch(e){} });
-loadPlayer();
+window.addEventListener("DOMContentLoaded", loadPlayer);
 </script>
+
 </body>
 </html>
