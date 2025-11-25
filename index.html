@@ -66,10 +66,9 @@ const firebaseConfig = {
   messagingSenderId: "701106957724",
   appId: "1:701106957724:web:dfba4d3ce63521afb1ec59"
 };
-
 firebase.initializeApp(firebaseConfig);
 
-// Всегда работаем через Firebase
+// ==================== DATABASE ADAPTER ====================
 const dbAdapter = {
     async setPlayer(id, payload) {
         return firebase.database().ref("players/" + id).set(payload);
@@ -110,11 +109,12 @@ function loadOrCreatePlayerID(){
     return id;
 }
 
-function loadPlayer(){
+async function loadPlayer(){
     playerID = loadOrCreatePlayerID();
     document.getElementById("playerId").innerText = "ID: " + playerID;
 
-    const saved = JSON.parse(localStorage.getItem("ruinaData_"+playerID) || "{}");
+    // Загружаем данные с Firebase
+    const saved = await dbAdapter.getPlayer(playerID) || {};
 
     baseClick = saved.baseClick ?? 1;
     baseAuto = saved.baseAuto ?? 0;
@@ -134,12 +134,15 @@ function loadPlayer(){
 }
 
 async function savePlayer(){
+    // Локальный кэш
     localStorage.setItem("ruinaData_"+playerID, JSON.stringify({
         ruina, baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins
     }));
 
+    // Сохраняем на Firebase
     await dbAdapter.setPlayer(playerID, {
-        ruina, baseClick, baseAuto, selectedSkin, updatedAt: Date.now()
+        ruina, baseClick, baseAuto, upgradeCost, autoClickCost, selectedSkin, purchasedSkins,
+        updatedAt: Date.now()
     });
 }
 
